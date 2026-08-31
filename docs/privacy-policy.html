@@ -55,6 +55,13 @@
             font-weight: 600;
             margin-bottom: 16px;
         }
+        .notice-box {
+            background-color: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 16px 0;
+        }
         .footer {
             margin-top: 40px;
             padding-top: 20px;
@@ -71,19 +78,25 @@
         <h1>Maxfiylik Siyosati (Privacy Policy)</h1>
         <p><strong>So'nggi yangilanish:</strong> 2026-yil 31-avgust</p>
         
-        <p>Ushbu Maxfiylik siyosati <strong>M-IT ERP</strong> mobil ilovasi va <strong>JarvisX ERP</strong> platformasi (keyingi o'rinlarda «Platforma») orqali foydalanuvchilarning shaxsiy ma'lumotlarini qanday yig'ilishi, ishlatilishi va himoya qilinishini belgilaydi.</p>
+        <p>Ushbu Maxfiylik siyosati <strong>M-IT ERP</strong> mobil ilovasi va <strong>JarvisX ERP</strong> platformasi (keyingi o'rinlarda «Platforma») orqali foydalanuvchilarning shaxsiy ma'lumotlarini to'plash, ishlatish, himoya qilish hamda hisoblarni boshqarish tartibini belgilaydi.</p>
 
-        <h2>1. Qanday ma'lumotlar to'planadi?</h2>
+        <h2>1. Hisob Yaratish Tartibi (Account Provisioning)</h2>
+        <div class="notice-box">
+            <p><strong>Ilovada ommaviy ro'yxatdan o'tish (Self-registration) mavjud emas.</strong></p>
+            <p>Barcha talaba hisoblari faqat <strong>M-IT o'quv markazi ma'muriyati (Admin)</strong> tomonidan talaba o'quv markaziga rasman qabul qilinganda ochib beriladi. Login ma'lumotlari (telefon raqam va maxsus parol) talabaga ma'muriyat tomonidan taqdim etiladi.</p>
+        </div>
+
+        <h2>2. Qanday ma'lumotlar to'planadi?</h2>
         <p>Tizimdan to'laqonli foydalanish va ta'lim sifatini oshirish uchun quyidagi ma'lumotlar yig'iladi:</p>
         <ul>
-            <li><strong>Shaxsiy ma'lumotlar:</strong> Ism, familiya, tug'ilgan sana va telefon raqami (hisobga kirish va identifikatsiya qilish uchun).</li>
+            <li><strong>Shaxsiy ma'lumotlar:</strong> Ism, familiya, tug'ilgan sana va telefon raqami (hisobga kirish va shaxsni tasdiqlash uchun).</li>
             <li><strong>Biometrik va foto ma'lumotlar:</strong> O'quv markazida davomatni avtomatlashtirish va guruh tekshiruvlari uchun yuz surati (Face ID / foto).</li>
             <li><strong>Ta'lim jarayoni:</strong> Guruh nomi, darslar jadvali, davomat tarixi, darslardagi ballar, vazifa javoblari va o'zlashtirish ko'rsatkichlari.</li>
             <li><strong>Moliya ma'lumotlari:</strong> Oylik kurs to'lovlari, qarz va kvitansiyalar tarixi.</li>
             <li><strong>Texnik ma'lumotlar:</strong> Qurilma turi, IP-manzil va Firebase Push xabarnomalari uchun FCM token.</li>
         </ul>
 
-        <h2>2. Ma'lumotlardan qanday maqsadda foydalaniladi?</h2>
+        <h2>3. Ma'lumotlardan qanday maqsadda foydalaniladi?</h2>
         <p>Yig'ilgan barcha ma'lumotlar qat'iy ravishda quyidagi maqsadlarda ishlatiladi:</p>
         <ul>
             <li>O'quv markazi xizmatlarini taqdim etish va darslar jadvalini ko'rsatish;</li>
@@ -93,14 +106,17 @@
             <li>Xavfsizlikni ta'minlash va tizimdagi ruxsatsiz harakatlarning oldini olish.</li>
         </ul>
 
-        <h2>3. Ma'lumotlar xavfsizligi va uchinchi shaxslarga berilmasligi</h2>
+        <h2>4. Hisobdan Chiqish (Log out) va Ma'lumotlarni O'chirish (Account Deletion)</h2>
+        <ul>
+            <li><strong>Hisobdan chiqish (Log out):</strong> Foydalanuvchi istalgan vaqtda Profil bo'limidagi <em>«Chiqish» (Log out)</em> tugmasi orqali hisobdan chiqishi mumkin. Bunda qurilmadagi barcha faol sessiya tokenlari darhol xavfsiz o'chiriladi.</li>
+            <li><strong>Hisobni va ma'lumotlarni to'liq o'chirish:</strong> Talaba o'zining shaxsiy ma'lumotlari va profilini butunlay o'chirishni talab qilish huquqiga ega. Buning uchun o'quv markaz ma'muriyatiga to'g'ridan-to'g'ri, telefon yoki email orqali murojaat qilish kifoya. Murojaat asosida talabaning ma'lumotlari serverdan to'liq va qaytarilmas qilib o'chiriladi.</li>
+        </ul>
+
+        <h2>5. Ma'lumotlar xavfsizligi va uchinchi shaxslarga berilmasligi</h2>
         <p>Sizning shaxsiy ma'lumotlaringiz shifrlangan <strong>HTTPS</strong> protokoli orqali uzatiladi va xavfsiz serverlarda saqlanadi. Biz foydalanuvchilarning shaxsiy ma'lumotlarini uchinchi tomonlarga sotmaymiz, ijaraga bermaymiz yoki tijoriy maqsadda ulashmaymiz.</p>
 
-        <h2>4. Foydalanuvchining huquqlari va ma'lumotlarni o'chirish</h2>
-        <p>Foydalanuvchi istalgan vaqtda o'z profil ma'lumotlarini ko'rish, tahrirlash yoki o'quv markaz ma'muriyatiga murojaat qilib barcha ma'lumotlarini to'liq o'chirishni talab qilish huquqiga ega.</p>
-
-        <h2>5. Aloqa ma'lumotlari</h2>
-        <p>Maxfiylik siyosati yoki ilova bo'yicha savollar bo'lsa, quyidagi aloqa kanallari orqali bog'lanishingiz mumkin:</p>
+        <h2>6. Aloqa ma'lumotlari</h2>
+        <p>Maxfiylik siyosati, hisob yaratish yoki uni o'chirish bo'yicha murojaatlar uchun:</p>
         <p>
             • Email: <strong>info@mit-academy.uz</strong><br>
             • Rasmiy veb-sayt: <strong>https://mit-academy.uz</strong>
