@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
+import 'package:m_it_student_platform/core/services/reminder_service.dart';
 import 'package:m_it_student_platform/features/lessons/domain/models/lesson_model.dart';
 
-class FeaturedClassCard extends StatelessWidget {
+class FeaturedClassCard extends StatefulWidget {
   const FeaturedClassCard({
     super.key,
     required this.lesson,
@@ -14,7 +15,22 @@ class FeaturedClassCard extends StatelessWidget {
   final VoidCallback onViewDetails;
 
   @override
+  State<FeaturedClassCard> createState() => _FeaturedClassCardState();
+}
+
+class _FeaturedClassCardState extends State<FeaturedClassCard> {
+  late bool _hasReminder;
+
+  @override
+  void initState() {
+    super.initState();
+    _hasReminder = ReminderService.isLessonReminderEnabled(widget.lesson.id);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final lesson = widget.lesson;
+
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -59,7 +75,7 @@ class FeaturedClassCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top row: Countdown chip & Days badge
+                // Top row: Branch/Track chip & Days badge & Reminder Bell
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -91,12 +107,14 @@ class FeaturedClassCard extends StatelessWidget {
                             const SizedBox(width: 6),
                             Flexible(
                               child: Text(
-                                lesson.startsInText,
+                                (lesson.branchName != null && lesson.branchName!.isNotEmpty)
+                                    ? lesson.branchName!
+                                    : (lesson.courseCode.isNotEmpty ? lesson.courseCode : 'IT Guruhi'),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 11,
+                                  fontSize: 12.5,
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: 0.2,
                                 ),
@@ -106,145 +124,259 @@ class FeaturedClassCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 4.5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.25),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.calendar_today_rounded,
-                            size: 11,
-                            color: Colors.white70,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            lesson.scheduleDays,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
+                    const SizedBox(width: 6),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (lesson.scheduleDays.isNotEmpty) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.calendar_today_rounded,
+                                  size: 11,
+                                  color: AppColors.accentLime,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  lesson.scheduleDays,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
+                          const SizedBox(width: 6),
                         ],
-                      ),
+                        // Reminder Bell Button
+                        InkWell(
+                          onTap: () async {
+                            final newState = await ReminderService.toggleLessonReminder(context, lesson);
+                            setState(() => _hasReminder = newState);
+                          },
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: _hasReminder
+                                  ? AppColors.accentLime.withValues(alpha: 0.25)
+                                  : Colors.white.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: _hasReminder ? AppColors.accentLime : Colors.white.withValues(alpha: 0.2),
+                                width: 1,
+                              ),
+                            ),
+                            child: Icon(
+                              _hasReminder ? Icons.notifications_active_rounded : Icons.notifications_none_rounded,
+                              size: 15,
+                              color: _hasReminder ? AppColors.accentLime : Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
-
-                // Subject Name & Mentor
-                Text(
-                  lesson.subject,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${lesson.teacher} (${lesson.teacherRole})',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
                 const SizedBox(height: 12),
 
-                // Info items: Class Time & Room
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+                // Group Name / Subject (Main neon title)
+                Text(
+                  lesson.subject.isNotEmpty ? lesson.subject : 'IT Guruhi',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                    height: 1.25,
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
+                ),
+
+                if (lesson.syllabusTopic != null &&
+                    lesson.syllabusTopic!.isNotEmpty &&
+                    lesson.syllabusTopic != lesson.subject) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    lesson.syllabusTopic!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                  child: Row(
+                ],
+
+                if (lesson.teacher.isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Row(
                     children: [
                       const Icon(
-                        Icons.access_time_filled_rounded,
-                        size: 15,
+                        Icons.account_circle_rounded,
+                        size: 17,
                         color: AppColors.accentLime,
                       ),
                       const SizedBox(width: 6),
-                      Flexible(
+                      Expanded(
                         child: Text(
-                          '${lesson.startTime} – ${lesson.endTime}',
+                          "${context.tr('teacher')}: ${lesson.teacher}",
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      const Icon(
-                        Icons.meeting_room_rounded,
-                        size: 15,
-                        color: AppColors.accentLime,
-                      ),
-                      const SizedBox(width: 5),
-                      Flexible(
-                        child: Text(
-                          lesson.room,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.95),
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ],
                   ),
+                ],
+
+                // Time & Room Row: Dars vaqti (chapda) va Dars xonasi (o'ngda)
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    // 1. Dars soati (Time) — Left side
+                    Expanded(
+                      flex: 11,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 7.5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.28),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.08),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.access_time_filled_rounded,
+                              size: 14,
+                              color: AppColors.accentLime,
+                            ),
+                            const SizedBox(width: 5),
+                            Expanded(
+                              child: Text(
+                                lesson.startTime.isNotEmpty
+                                    ? (lesson.endTime.isNotEmpty
+                                        ? '${lesson.startTime} – ${lesson.endTime}'
+                                        : lesson.startTime)
+                                    : '11:00 – 14:00',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // 2. Dars xonasi (Room) — Right side
+                    Expanded(
+                      flex: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 7.5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.28),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.08),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.meeting_room_rounded,
+                              size: 14,
+                              color: AppColors.accentLime,
+                            ),
+                            const SizedBox(width: 5),
+                            Expanded(
+                              child: Text(
+                                lesson.room.isNotEmpty
+                                    ? lesson.room
+                                    : '3-xona',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 14),
 
                 // Details Button in Neon Lime with Navy text
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: onViewDetails,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accentLime,
-                      foregroundColor: const Color(0xFF00213D),
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: widget.onViewDetails,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accentLime,
+                          foregroundColor: const Color(0xFF00213D),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        icon: const Icon(
+                          Icons.menu_book_rounded,
+                          size: 17,
+                          color: Color(0xFF00213D),
+                        ),
+                        label: Text(
+                          context.tr('viewDetails'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF00213D),
+                          ),
+                        ),
                       ),
                     ),
-                    icon: const Icon(
-                      Icons.menu_book_rounded,
-                      size: 16,
-                      color: Color(0xFF00213D),
-                    ),
-                    label: Text(
-                      context.tr('viewDetails'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF00213D),
-                      ),
-                    ),
-                  ),
+                  ],
                 ),
               ],
             ),

@@ -61,10 +61,8 @@ class AnnouncementCard extends StatelessWidget {
             color: colorScheme.surface,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: announcement.isUrgent
-                  ? AppColors.danger.withValues(alpha: isDark ? 0.5 : 0.35)
-                  : colorScheme.outline,
-              width: announcement.isUrgent ? 1.5 : 1,
+              color: colorScheme.outline,
+              width: 1,
             ),
             boxShadow: [
               BoxShadow(
@@ -102,24 +100,6 @@ class AnnouncementCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        if (announcement.isUrgent) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.danger.withValues(alpha: isDark ? 0.25 : 0.12),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text(
-                              'HOT',
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.danger,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                        ],
                         Expanded(
                           child: Text(
                             announcement.author,

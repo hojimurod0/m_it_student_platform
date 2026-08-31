@@ -77,7 +77,7 @@ class CustomBottomNav extends StatelessWidget {
                           curve: Curves.easeOutBack,
                           child: Icon(
                             isSelected ? item.activeIcon : item.icon,
-                            size: 22,
+                            size: 24,
                             color: isSelected
                                 ? (isDark ? AppColors.primaryAccent : AppColors.primaryDark)
                                 : (isDark ? const Color(0xFF64748B) : AppColors.textMuted),
@@ -89,8 +89,8 @@ class CustomBottomNav extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            fontSize: 12.5,
+                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                             color: isSelected
                                 ? (isDark ? AppColors.primaryAccent : AppColors.primaryDark)
                                 : (isDark ? const Color(0xFF94A3B8) : AppColors.textMuted),

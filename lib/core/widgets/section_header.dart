@@ -8,7 +8,7 @@ class SectionHeader extends StatelessWidget {
     this.subtitle,
     this.actionLabel,
     this.onAction,
-    this.fontSize = 17,
+    this.fontSize = 18.5,
   });
 
   final String title;
@@ -47,7 +47,7 @@ class SectionHeader extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w500,
                     color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
                   ),
@@ -69,7 +69,7 @@ class SectionHeader extends StatelessWidget {
                   Text(
                     actionLabel!,
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w700,
                       color: isDark ? AppColors.primaryAccent : AppColors.primary,
                     ),
@@ -77,7 +77,7 @@ class SectionHeader extends StatelessWidget {
                   const SizedBox(width: 2),
                   Icon(
                     Icons.arrow_forward_ios_rounded,
-                    size: 11,
+                    size: 12,
                     color: isDark ? AppColors.primaryAccent : AppColors.primary,
                   ),
                 ],

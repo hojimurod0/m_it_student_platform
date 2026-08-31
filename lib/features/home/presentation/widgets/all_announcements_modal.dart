@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
-import 'package:m_it_student_platform/features/home/data/repositories/mock_home_repository.dart';
+import 'package:m_it_student_platform/core/di/injection_container.dart';
+import 'package:m_it_student_platform/features/home/domain/repositories/home_repository.dart';
 import 'package:m_it_student_platform/features/home/domain/models/announcement_model.dart';
 import 'package:m_it_student_platform/features/home/presentation/widgets/announcement_card.dart';
 import 'package:m_it_student_platform/features/home/presentation/widgets/announcement_details_modal.dart';
@@ -23,52 +24,41 @@ class AllAnnouncementsModal extends StatefulWidget {
 }
 
 class _AllAnnouncementsModalState extends State<AllAnnouncementsModal> {
-  int _selectedFilter = 0;
-  String _searchQuery = '';
-  final TextEditingController _searchController = TextEditingController();
-
-  List<String> _buildFilters(BuildContext context) => [
-    context.tr('filterAll'),
-    context.tr('filterHot'),
-    context.tr('filterEvents'),
-    context.tr('filterPayments'),
-    context.tr('filterExams'),
-  ];
+  late final HomeRepository _homeRepo;
+  List<Announcement> _items = [];
+  bool _isLoading = true;
 
   @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _homeRepo = sl<HomeRepository>();
+    _loadData();
   }
 
-  List<Announcement> _filterAnnouncements() {
-    final list = MockHomeRepository.announcements;
-    return list.where((item) {
-      if (_selectedFilter == 1 && !item.isUrgent) return false;
-      if (_selectedFilter == 2 && item.type != AnnouncementType.event) return false;
-      if (_selectedFilter == 3 && item.type != AnnouncementType.payment) return false;
-      if (_selectedFilter == 4 && item.type != AnnouncementType.exam) return false;
-
-      if (_searchQuery.isNotEmpty) {
-        final q = _searchQuery.toLowerCase();
-        final matchTitle = item.title.toLowerCase().contains(q);
-        final matchMsg = item.message.toLowerCase().contains(q);
-        final matchAuthor = item.author.toLowerCase().contains(q);
-        if (!matchTitle && !matchMsg && !matchAuthor) return false;
+  Future<void> _loadData() async {
+    try {
+      final data = await _homeRepo.getAnnouncements();
+      if (mounted) {
+        setState(() {
+          _items = data;
+          _isLoading = false;
+        });
       }
-      return true;
-    }).toList();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final items = _filterAnnouncements();
-    final filters = _buildFilters(context);
+    final items = _items;
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.9,
+      height: MediaQuery.of(context).size.height * 0.85,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -93,30 +83,50 @@ class _AllAnnouncementsModalState extends State<AllAnnouncementsModal> {
               ),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
           // Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
                 children: [
-                  Text(
-                    context.tr('allAnnouncementsTitle'),
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: theme.colorScheme.onSurface,
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: (isDark ? AppColors.accentLime : AppColors.brandNavy)
+                          .withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.notifications_rounded,
+                      color: isDark ? AppColors.accentLime : AppColors.brandNavy,
+                      size: 22,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${items.length} ${context.tr('announcementsCount')}',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
-                    ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        context.tr('notificationsTitle'),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${context.tr('allNoticesCount')} (${items.length})',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -126,132 +136,54 @@ class _AllAnnouncementsModalState extends State<AllAnnouncementsModal> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-
-          // Search Field
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : AppColors.surfaceSecondary,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: theme.colorScheme.outline),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.search_rounded,
-                  size: 20,
-                  color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (val) => setState(() => _searchQuery = val.trim()),
-                    decoration: InputDecoration(
-                      hintText: context.tr('searchPlaceholder'),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                  ),
-                ),
-                if (_searchQuery.isNotEmpty)
-                  GestureDetector(
-                    onTap: () {
-                      _searchController.clear();
-                      setState(() => _searchQuery = '');
-                    },
-                    child: const Icon(Icons.clear_rounded, size: 18),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Filter Chips
-          SizedBox(
-            height: 34,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: filters.length,
-              itemBuilder: (context, index) {
-                final isSelected = _selectedFilter == index;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    selected: isSelected,
-                    label: Text(filters[index]),
-                    labelStyle: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected
-                          ? (isDark ? AppColors.primaryAccent : AppColors.primaryDark)
-                          : (isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary),
-                    ),
-                    backgroundColor: theme.colorScheme.surface,
-                    selectedColor: isDark
-                        ? AppColors.primary.withValues(alpha: 0.25)
-                        : AppColors.primarySurface,
-                    side: BorderSide(
-                      color: isSelected ? AppColors.primaryAccent : theme.colorScheme.outline,
-                    ),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    onSelected: (selected) {
-                      setState(() => _selectedFilter = index);
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Divider(height: 1, color: theme.colorScheme.outline),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
 
-          // Announcements List
+          // All Announcements Clean List
           Expanded(
-            child: items.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.notifications_none_rounded,
-                          size: 48,
-                          color: isDark ? const Color(0xFF64748B) : AppColors.textMuted,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          context.tr('noAnnouncementsTitle'),
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          context.tr('noAnnouncementsTryAnother'),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2.5),
                   )
-                : ListView.separated(
-                    itemCount: items.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final item = items[index];
-                      return AnnouncementCard(
-                        announcement: item,
-                        onTap: () => AnnouncementDetailsModal.show(context, item),
-                      );
-                    },
-                  ),
+                : items.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.notifications_none_rounded,
+                              size: 48,
+                              color: isDark
+                                  ? const Color(0xFF64748B)
+                                  : AppColors.textMuted,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              context.tr('noAnnouncementsTitle'),
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.separated(
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: items.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final item = items[index];
+                          return AnnouncementCard(
+                            announcement: item,
+                            onTap: () =>
+                                AnnouncementDetailsModal.show(context, item),
+                          );
+                        },
+                      ),
           ),
         ],
       ),

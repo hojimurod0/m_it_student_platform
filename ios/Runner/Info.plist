@@ -4,10 +4,21 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+	</dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>M-IT ERP</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Uyga vazifa va ma'lumotnomalarni ilovaga yuklash uchun rasmlar galereyasiga kirish talab qilinadi.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Uyga vazifani rasmga olib yuklash yoki profil rasmini o'rnatish uchun kameradan foydalanish talab qilinadi.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Ilovadan audio yoki video materiallarni yuklash uchun mikrofonga kirish talab qilinadi.</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

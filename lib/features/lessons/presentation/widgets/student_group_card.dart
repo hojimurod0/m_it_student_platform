@@ -92,7 +92,7 @@ class StudentGroupCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      group.isPrimary ? 'Asosiy Guruh' : 'Qo\'shimcha',
+                      group.isPrimary ? context.tr('primaryGroup') : context.tr('additionalGroup'),
                       style: TextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w700,
@@ -184,7 +184,7 @@ class StudentGroupCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Modul: ${group.currentModule}',
+                        '${context.tr('modulePrefix')}: ${group.currentModule}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

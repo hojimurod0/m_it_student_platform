@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:m_it_student_platform/core/storage/local_storage_service.dart';
 import 'package:m_it_student_platform/features/profile/domain/models/attendance_model.dart';
 import 'package:m_it_student_platform/features/profile/domain/models/grade_model.dart';
 import 'package:m_it_student_platform/features/profile/domain/models/student_model.dart';
@@ -6,15 +7,25 @@ import 'package:m_it_student_platform/features/profile/domain/models/student_mod
 class MockProfileRepository {
   MockProfileRepository._();
 
-  static final ValueNotifier<StudentProfile> studentNotifier = ValueNotifier<StudentProfile>(student);
+  static final ValueNotifier<StudentProfile> studentNotifier = ValueNotifier<StudentProfile>(_getInitialStudent());
+
+  static StudentProfile _getInitialStudent() {
+    final saved = LocalStorageService.getUserData();
+    if (saved != null) {
+      try {
+        return StudentProfile.fromJson(saved);
+      } catch (_) {}
+    }
+    return defaultStudent;
+  }
 
   static StudentProfile get currentStudent => studentNotifier.value;
 
-  static const StudentProfile student = StudentProfile(
+  static const StudentProfile defaultStudent = StudentProfile(
     id: 'ST-10245',
     fullName: 'John Smith',
-    phone: '+998 (90) 123-45-67',
-    parentPhone: '+998 (99) 876-54-32',
+    phone: '+998 90 123 45 67',
+    parentPhone: '+998 99 876 54 32',
     email: 'john.smith@mit-academy.uz',
     courseName: 'Flutter Mobile Development',
     group: 'FS-204 guruhi',
@@ -22,13 +33,22 @@ class MockProfileRepository {
     classTime: '14:00 – 16:00',
     classDays: 'Se - Pay - Shan',
     room: '204-kompyuter xonasi',
-    monthlyPayment: '400 000 so\'m',
+    monthlyPayment: '500 000 so\'m',
     paymentStatus: 'To\'langan',
     attendancePercentage: 97,
     overallScore: 98,
+    coins: 0,
+    homeworkPercent: 0,
     gender: 'male',
     avatarIndex: 0,
   );
+
+  static const StudentProfile student = defaultStudent;
+
+  static void setStudent(StudentProfile student) {
+    studentNotifier.value = student;
+    LocalStorageService.saveUserData(student.toJson());
+  }
 
   static void updateProfile({
     String? fullName,
@@ -46,6 +66,7 @@ class MockProfileRepository {
       gender: gender,
       avatarIndex: avatarIndex,
     );
+    LocalStorageService.saveUserData(studentNotifier.value.toJson());
   }
 
   static const List<GradeItem> grades = [

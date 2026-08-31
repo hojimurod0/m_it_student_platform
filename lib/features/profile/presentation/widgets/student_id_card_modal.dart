@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
+import 'package:m_it_student_platform/core/localization/app_strings.dart';
 import 'package:m_it_student_platform/core/widgets/app_logo.dart';
 import 'package:m_it_student_platform/core/widgets/student_avatar.dart';
 import 'package:m_it_student_platform/features/profile/data/repositories/mock_profile_repository.dart';
@@ -99,7 +100,7 @@ class _StudentIdCardModalState extends State<StudentIdCardModal>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Raqamli Talaba ID Kartasi',
+                      context.tr('digitalStudentCard'),
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -108,7 +109,7 @@ class _StudentIdCardModalState extends State<StudentIdCardModal>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Turniket va darslarga kirish guvohnomasi',
+                      context.tr('studentCardPassDesc'),
                       style: TextStyle(
                         fontSize: 12,
                         color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
@@ -155,7 +156,7 @@ class _StudentIdCardModalState extends State<StudentIdCardModal>
             TextButton.icon(
               onPressed: _toggleFlip,
               icon: const Icon(Icons.flip_rounded, size: 18),
-              label: Text(_isBack ? 'Oldi tomonini ko\'rish' : 'QR-kod va orqa tomonini ko\'rish'),
+              label: Text(_isBack ? context.tr('viewFrontCard') : context.tr('viewBackCard')),
               style: TextButton.styleFrom(
                 foregroundColor: isDark ? AppColors.primaryAccent : AppColors.primary,
               ),
@@ -249,9 +250,9 @@ class _StudentIdCardModalState extends State<StudentIdCardModal>
                       ),
                     ),
                     const SizedBox(width: 5),
-                    const Text(
-                      'ACTIVE',
-                      style: TextStyle(
+                    Text(
+                      context.tr('active').toUpperCase(),
+                      style: const TextStyle(
                         color: AppColors.success,
                         fontSize: 9.5,
                         fontWeight: FontWeight.w800,
@@ -280,10 +281,13 @@ class _StudentIdCardModalState extends State<StudentIdCardModal>
                   children: [
                     Text(
                       student.fullName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 18,
+                        fontSize: 17,
                         fontWeight: FontWeight.w800,
+                        height: 1.2,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -297,7 +301,7 @@ class _StudentIdCardModalState extends State<StudentIdCardModal>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Guruh: ${student.group} • ${student.classTime}',
+                      '${context.tr('group')}: ${student.group} • ${student.classTime}',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 11,
@@ -318,7 +322,7 @@ class _StudentIdCardModalState extends State<StudentIdCardModal>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'TALABA ID',
+                    context.tr('studentIdTitle').toUpperCase(),
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.5),
                       fontSize: 9,
@@ -372,9 +376,9 @@ class _StudentIdCardModalState extends State<StudentIdCardModal>
       ),
       child: Column(
         children: [
-          const Text(
-            'TURNIKET SKANERI UCHUN QR KOD',
-            style: TextStyle(
+          Text(
+            context.tr('turnstileQrTitle').toUpperCase(),
+            style: const TextStyle(
               color: Colors.white70,
               fontSize: 11,
               fontWeight: FontWeight.w800,
@@ -413,7 +417,7 @@ class _StudentIdCardModalState extends State<StudentIdCardModal>
           const SizedBox(height: 14),
 
           Text(
-            'O\'quv markaz laboratoriyasiga kirish uchun skanerga tuting',
+            context.tr('turnstileQrDesc'),
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.7),

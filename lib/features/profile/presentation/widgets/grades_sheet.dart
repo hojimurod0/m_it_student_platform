@@ -123,7 +123,7 @@ class GradesSheet extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${grade.score} ball',
+                        '${grade.score} ${context.tr('scorePts')}',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,

@@ -1,31 +1,34 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
+import 'package:m_it_student_platform/core/routes/app_routes.dart';
 import 'package:m_it_student_platform/core/utils/haptics.dart';
 import 'package:m_it_student_platform/core/widgets/section_header.dart';
 import 'package:m_it_student_platform/core/widgets/student_avatar.dart';
+import 'package:m_it_student_platform/features/profile/presentation/widgets/edit_profile_modal.dart';
 import 'package:m_it_student_platform/features/home/data/repositories/mock_home_repository.dart';
-import 'package:m_it_student_platform/features/home/domain/models/announcement_model.dart';
-import 'package:m_it_student_platform/features/home/presentation/widgets/ai_mentor_in_progress_modal.dart';
-import 'package:m_it_student_platform/features/home/presentation/widgets/all_announcements_modal.dart';
-import 'package:m_it_student_platform/features/home/presentation/widgets/announcement_card.dart';
-import 'package:m_it_student_platform/features/home/presentation/widgets/announcement_details_modal.dart';
 import 'package:m_it_student_platform/features/home/presentation/widgets/featured_class_card.dart';
-import 'package:m_it_student_platform/features/home/presentation/widgets/it_news_section.dart';
-import 'package:m_it_student_platform/features/home/presentation/widgets/lab_booking_modal.dart';
-import 'package:m_it_student_platform/features/home/presentation/widgets/mentor_chat_modal.dart';
 import 'package:m_it_student_platform/features/home/presentation/widgets/stat_card.dart';
-import 'package:m_it_student_platform/features/homework/presentation/widgets/homework_modal.dart';
 import 'package:m_it_student_platform/features/lessons/data/repositories/mock_lessons_repository.dart';
-import 'package:m_it_student_platform/features/lessons/presentation/widgets/lesson_card.dart';
 import 'package:m_it_student_platform/features/lessons/presentation/widgets/lesson_details_sheet.dart';
 import 'package:m_it_student_platform/features/payments/data/repositories/mock_payments_repository.dart';
 import 'package:m_it_student_platform/features/profile/data/repositories/mock_profile_repository.dart';
 import 'package:m_it_student_platform/features/profile/domain/models/student_model.dart';
-import 'package:m_it_student_platform/features/profile/presentation/widgets/student_id_card_modal.dart';
-import 'package:m_it_student_platform/features/quiz/presentation/widgets/quiz_modal.dart';
+import 'package:m_it_student_platform/core/storage/app_cache_service.dart';
+import 'package:m_it_student_platform/core/di/injection_container.dart';
+import 'package:m_it_student_platform/features/home/domain/repositories/home_repository.dart';
+import 'package:m_it_student_platform/features/home/presentation/widgets/gamification_modal.dart';
+import 'package:m_it_student_platform/features/home/presentation/widgets/resources_library_modal.dart';
+import 'package:m_it_student_platform/features/lessons/data/repositories/lessons_repository_impl.dart';
+import 'package:m_it_student_platform/features/lessons/domain/models/lesson_model.dart';
+import 'package:m_it_student_platform/features/lessons/domain/repositories/lessons_repository.dart';
+import 'package:m_it_student_platform/features/lessons/presentation/widgets/lesson_card.dart';
+import 'package:m_it_student_platform/core/widgets/shimmer_loading.dart';
+import 'package:m_it_student_platform/features/payments/domain/entities/payment.dart';
+import 'package:m_it_student_platform/features/payments/domain/repositories/payments_repository.dart';
+import 'package:m_it_student_platform/features/profile/data/repositories/profile_repository_impl.dart';
+import 'package:m_it_student_platform/features/profile/domain/repositories/profile_repository.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.onNavigateToTab});
@@ -38,20 +41,132 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with AutomaticKeepAliveClientMixin {
+  late final HomeRepository _homeRepo;
+  late final LessonsRepository _lessonsRepo;
+  late final PaymentsRepository _paymentsRepo;
+
+  Lesson _featured = MockHomeRepository.featuredClass;
+  List<Lesson> _todayClasses = MockLessonsRepository.todayLessons;
+  PaymentSummary _payment = MockPaymentsRepository.paymentSummary;
+  bool _isLoading = true;
+
   @override
   bool get wantKeepAlive => true;
 
-  void _showAllAnnouncements(BuildContext context) {
-    AppHaptics.light();
-    AllAnnouncementsModal.show(context);
+  @override
+  void initState() {
+    super.initState();
+    _homeRepo = sl<HomeRepository>();
+    _lessonsRepo = sl.isRegistered<LessonsRepository>()
+        ? sl<LessonsRepository>()
+        : LessonsRepositoryImpl();
+    _paymentsRepo = sl<PaymentsRepository>();
+
+    // Instant offline-cache hydration so screen is never blank on entry
+    final cachedFeatured = AppCacheService.getCache(AppCacheService.keyFeaturedClass);
+    if (cachedFeatured is Map<String, dynamic>) {
+      _featured = Lesson.fromJson(cachedFeatured);
+      _isLoading = false;
+    }
+    final cachedLessons = AppCacheService.getCache(AppCacheService.keyLessons);
+    if (cachedLessons is List) {
+      final list = cachedLessons.whereType<Map<String, dynamic>>().map(Lesson.fromJson).toList();
+      if (list.isNotEmpty) _todayClasses = list;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadHomeData();
+    });
+  }
+
+  Future<void> _loadHomeData() async {
+    if (!mounted) return;
+    if (_todayClasses.isEmpty) {
+      setState(() => _isLoading = true);
+    }
+
+    try {
+      await Future.wait([
+        _homeRepo
+            .getFeaturedClass()
+            .then((featured) {
+          if (mounted) setState(() => _featured = featured);
+        }).catchError((_) {}),
+        _lessonsRepo
+            .getTodayLessons()
+            .then((today) {
+          if (mounted && today.isNotEmpty) setState(() => _todayClasses = today);
+        }).catchError((_) {}),
+        _paymentsRepo
+            .getPaymentSummary()
+            .then((paymentResult) {
+          paymentResult.when(
+            success: (data) {
+              if (mounted) setState(() => _payment = data);
+            },
+            failure: (_) {},
+          );
+        }).catchError((_) {}),
+        (sl.isRegistered<ProfileRepository>()
+                ? sl<ProfileRepository>()
+                : ProfileRepositoryImpl())
+            .getStudentProfile()
+            .catchError((_) => MockProfileRepository.currentStudent),
+      ]);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  String _formatMonthlyFee(
+    String? featuredFee,
+    String? studentPayment,
+    double monthlyRate,
+    String currency,
+  ) {
+    if (featuredFee != null && featuredFee.isNotEmpty) {
+      return _formatAmountWithSpaces(featuredFee, currency);
+    }
+    if (studentPayment != null && studentPayment.isNotEmpty) {
+      return _formatAmountWithSpaces(studentPayment, currency);
+    }
+    if (monthlyRate > 0) {
+      return _formatAmountWithSpaces(monthlyRate, currency);
+    }
+    return '500 000 $currency';
+  }
+
+  static String _formatAmountWithSpaces(dynamic value, [String currency = "so'm"]) {
+    if (value == null) return '500 000 $currency';
+    if (value is num) {
+      if (value <= 0) return '500 000 $currency';
+      final intVal = value.toInt();
+      final formatted = intVal.toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (m) => '${m[1]} ',
+      );
+      return '$formatted $currency';
+    }
+    final str = value.toString().trim();
+    if (str.isEmpty) return '500 000 $currency';
+    final digits = str.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.isEmpty) return str;
+    final numVal = int.tryParse(digits) ?? 500000;
+    final formatted = numVal.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]} ',
+    );
+    return '$formatted $currency';
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    const featured = MockHomeRepository.featuredClass;
-    const todayClasses = MockLessonsRepository.todayLessons;
-    const payment = MockPaymentsRepository.paymentSummary;
+    final featured = _featured;
+    final todayClasses = _todayClasses;
+    final payment = _payment;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -59,24 +174,25 @@ class _HomeScreenState extends State<HomeScreen>
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
-          onRefresh: () async {
-            AppHaptics.light();
-            await Future<void>.delayed(const Duration(milliseconds: 400));
-          },
+          onRefresh: _loadHomeData,
+          color: const Color(0xFFD3FF32),
           child: ValueListenableBuilder<StudentProfile>(
             valueListenable: MockProfileRepository.studentNotifier,
             builder: (context, student, _) {
               return ListView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 90),
                 children: [
-                  // 1. Student Header Row (Avatar on Left, Name in Middle, Bell on Right)
+                  // 1. Student Avatar + Name + Notification Bell Header (Har doim ochiq, Shimmersiz)
                   Row(
                     children: [
-                      // Avatar on the Left (Tap to show Digital QR Pass)
+                      // Avatar on the Left
                       GestureDetector(
                         onTap: () {
                           AppHaptics.selection();
-                          StudentIdCardModal.show(context);
+                          EditProfileModal.show(context, student);
                         },
                         child: StudentAvatar(
                           size: 46,
@@ -87,52 +203,33 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                       const SizedBox(width: 12),
 
-                      // Student Name & Group in the Middle
+                      // Student Name in the Middle
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                              Text(
-                                student.fullName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w900,
-                                  color: theme.colorScheme.onSurface,
-                                  letterSpacing: -0.3,
-                                ),
-                              ),
-                            const SizedBox(height: 2),
-                            Text(
-                              student.courseName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                color: isDark
-                                    ? const Color(0xFF94A3B8)
-                                    : AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          student.fullName.isNotEmpty
+                              ? student.fullName
+                              : context.tr('student'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 19.5,
+                            fontWeight: FontWeight.w800,
+                            color: theme.colorScheme.onSurface,
+                            letterSpacing: -0.4,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
-
-                      // Notification Bell Button on the Right
                       Container(
                         decoration: BoxDecoration(
                           color: isDark
-                              ? const Color(0xFF1E293B)
+                              ? AppColors.darkSurfaceSecondary
                               : Colors.white,
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: isDark
                                 ? const Color(0xFF334155)
                                 : const Color(0xFFE2E8F0),
-                            width: 1.1,
                           ),
                           boxShadow: [
                             BoxShadow(
@@ -152,7 +249,10 @@ class _HomeScreenState extends State<HomeScreen>
                                 size: 22,
                                 color: theme.colorScheme.onSurface,
                               ),
-                              onPressed: () => _showAllAnnouncements(context),
+                              onPressed: () {
+                                AppHaptics.light();
+                                Navigator.of(context).pushNamed(AppRoutes.notifications);
+                              },
                             ),
                             Positioned(
                               right: 11,
@@ -173,132 +273,140 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                   const SizedBox(height: 18),
 
-                  // 2. Continuous Auto-Scrolling Compact Quick Services Carousel
-                  _AutoScrollingQuickActions(
-                    onShowAnnouncements: () => _showAllAnnouncements(context),
-                  ),
+                  // 2. Quick Feature Horizontal Scroller (Ariza, Resurslar, Gamifikatsiya)
+                  _buildQuickFeatureScroller(context, isDark, student),
                   const SizedBox(height: 16),
 
-                  // 3. Today's Featured In-Person IT Class
-                  FeaturedClassCard(
-                    lesson: featured,
-                    onViewDetails: () =>
-                        LessonDetailsSheet.show(context, featured),
-                  ),
+                  // 3. Featured Active Class Card (Asosiy card - yuklanayotganda shimmer)
+                  if (_isLoading)
+                    const ShimmerCardSkeleton(height: 170)
+                  else () {
+                    var effectiveFeatured = featured;
+                    if (effectiveFeatured.room.isEmpty) {
+                      effectiveFeatured = effectiveFeatured.copyWith(
+                        room: student.room.isNotEmpty ? student.room : '3-xona',
+                      );
+                    }
+                    if (effectiveFeatured.startTime.isEmpty && student.classTime.isNotEmpty) {
+                      final parts = student.classTime.split(RegExp(r'\s*[–-]\s*'));
+                      if (parts.isNotEmpty) {
+                        effectiveFeatured = effectiveFeatured.copyWith(
+                          startTime: parts[0].trim(),
+                          endTime: parts.length > 1 ? parts[1].trim() : '',
+                        );
+                      }
+                    }
+                    return RepaintBoundary(
+                      child: FeaturedClassCard(
+                        lesson: effectiveFeatured,
+                        onViewDetails: () =>
+                            LessonDetailsSheet.show(context, effectiveFeatured),
+                      ),
+                    );
+                  }(),
                   const SizedBox(height: 22),
 
-                  // 4. Quick Statistics Grid (2x2)
+                  // 4. Quick Statistics Grid (4 talik card - yuklanayotganda shimmer)
                   SectionHeader(
                     title: context.tr('academicOverview'),
                     subtitle: context.tr('academicOverviewSub'),
                   ),
                   const SizedBox(height: 12),
-                  GridView(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                          mainAxisExtent: 114,
+                  if (_isLoading)
+                    const ShimmerStatGridSkeleton()
+                  else
+                    RepaintBoundary(
+                      child: GridView(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                              mainAxisExtent: 120,
+                            ),
+                        children: [
+                        StatCard(
+                          title: context.tr('statTodayClasses'),
+                          value: '${todayClasses.length}',
+                          icon: Icons.school_rounded,
+                          accentColor: AppColors.primary,
+                          badgeText: todayClasses.isNotEmpty
+                              ? context.tr('activeStatus')
+                              : (student.group.isNotEmpty ? student.group : context.tr('activeStatus')),
+                          badgeColor: isDark
+                              ? AppColors.primaryAccent
+                              : AppColors.primary,
+                          onTap: () => widget.onNavigateToTab?.call(1),
                         ),
-                    children: [
-                      StatCard(
-                        title: context.tr('statTodayClasses'),
-                        value: '${todayClasses.length}',
-                        icon: Icons.school_rounded,
-                        accentColor: AppColors.primary,
-                        badgeText: context.tr('activeStatus'),
-                        badgeColor: isDark
-                            ? AppColors.primaryAccent
-                            : AppColors.primary,
-                        onTap: () => widget.onNavigateToTab?.call(1),
-                      ),
-                      StatCard(
-                        title: context.tr('statAttendance'),
-                        value: '${student.attendancePercentage}%',
-                        icon: Icons.fact_check_outlined,
-                        accentColor: AppColors.secondary,
-                        badgeText: context.tr('attendanceTrend'),
-                        badgeColor: AppColors.success,
-                        onTap: () => widget.onNavigateToTab?.call(3),
-                      ),
-                      StatCard(
-                        title: context.tr('statGpa'),
-                        value: '${student.overallScore}%',
-                        icon: Icons.grade_outlined,
-                        accentColor: AppColors.accentPurple,
-                        badgeText: context.tr('topRank'),
-                        badgeColor: AppColors.accentPurple,
-                        onTap: () => widget.onNavigateToTab?.call(3),
-                      ),
-                      StatCard(
-                        title: context.tr('statRemaining'),
-                        value: context.tr('monthlyFee'),
-                        icon: Icons.account_balance_wallet_outlined,
-                        accentColor: AppColors.accentAmber,
-                        badgeText: payment.isPaid
-                            ? context.tr('paid')
-                            : context.tr('unpaid'),
-                        badgeColor: payment.isPaid
-                            ? AppColors.success
-                            : AppColors.danger,
-                        onTap: () => widget.onNavigateToTab?.call(2),
-                      ),
-                    ],
+                        StatCard(
+                          title: context.tr('statAttendance'),
+                          value: '${student.attendancePercentage}%',
+                          icon: Icons.fact_check_outlined,
+                          accentColor: AppColors.secondary,
+                          badgeText: context.tr('attendanceTrend'),
+                          badgeColor: AppColors.success,
+                          onTap: () {
+                            AppHaptics.selection();
+                            Navigator.of(context).pushNamed(AppRoutes.attendance);
+                          },
+                        ),
+                        StatCard(
+                          title: context.tr('statGpa'),
+                          value: '${student.overallScore}%',
+                          icon: Icons.grade_outlined,
+                          accentColor: AppColors.accentPurple,
+                          badgeText: context.tr('topRank'),
+                          badgeColor: AppColors.accentPurple,
+                          onTap: () {
+                            AppHaptics.selection();
+                            Navigator.of(context).pushNamed(AppRoutes.grades);
+                          },
+                        ),
+                        StatCard(
+                          title: context.tr('statMonthlyTuition'),
+                          value: _formatMonthlyFee(
+                            featured.monthlyFee,
+                            student.monthlyPayment,
+                            payment.monthlyRate,
+                            context.tr('currencySom'),
+                          ),
+                          icon: Icons.account_balance_wallet_outlined,
+                          accentColor: const Color(0xFF10B981),
+                          badgeText: context.tr('tuitionCycle'),
+                          badgeColor: const Color(0xFF10B981),
+                          onTap: () => widget.onNavigateToTab?.call(2),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 22),
 
-                  // 5. Today's IT Schedule Section
+                  // 5. Today's Lessons (Bugungi darslar - Faqat 1 ta dars, Barchasi bosilganda darslar tabiga o'tadi)
                   SectionHeader(
-                    title: context.tr('todaySchedule'),
-                    subtitle: context.tr('todayScheduleSub'),
+                    title: context.tr('todayClasses'),
+                    subtitle: student.group.isNotEmpty ? student.group : 'Back end 05',
                     actionLabel: context.tr('seeAll'),
                     onAction: () => widget.onNavigateToTab?.call(1),
                   ),
                   const SizedBox(height: 12),
-                  ...todayClasses.map((item) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: LessonCard(
-                        lesson: item,
-                        onTap: () => LessonDetailsSheet.show(context, item),
+                  if (_isLoading)
+                    const ShimmerTopicListSkeleton(itemCount: 1)
+                  else () {
+                    final rawLesson = todayClasses.isNotEmpty ? todayClasses.first : featured;
+                    final effectiveLesson = (rawLesson.room.isNotEmpty || student.room.isEmpty)
+                        ? rawLesson
+                        : rawLesson.copyWith(room: student.room);
+                    return LessonCard(
+                      lesson: effectiveLesson,
+                      onTap: () => LessonDetailsSheet.show(
+                        context,
+                        effectiveLesson,
                       ),
                     );
-                  }),
+                  }(),
                   const SizedBox(height: 16),
-
-                  // 6. IT Academy Announcements
-                  SectionHeader(
-                    title: context.tr('campusAnnouncements'),
-                    subtitle: context.tr('campusAnnouncementsSub'),
-                    actionLabel: context.tr('allNotices'),
-                    onAction: () => _showAllAnnouncements(context),
-                  ),
-                  const SizedBox(height: 12),
-                  ...MockHomeRepository.announcements.take(3).map((ann) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: AnnouncementCard(
-                        announcement: ann,
-                        onTap: () => AnnouncementDetailsModal.show(
-                          context,
-                          ann,
-                          onAction: () {
-                            if (ann.type == AnnouncementType.payment) {
-                              widget.onNavigateToTab?.call(2);
-                            }
-                          },
-                        ),
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: 22),
-
-                  // 7. IT Yangiliklari bo'limi (Rasmiy Manbalar)
-                  const ItNewsSection(horizontalPadding: 0),
-                  const SizedBox(height: 100),
                 ],
               );
             },
@@ -307,257 +415,144 @@ class _HomeScreenState extends State<HomeScreen>
       ),
     );
   }
-}
 
-class _AutoScrollingQuickActions extends StatefulWidget {
-  const _AutoScrollingQuickActions({required this.onShowAnnouncements});
-
-  final VoidCallback onShowAnnouncements;
-
-  @override
-  State<_AutoScrollingQuickActions> createState() =>
-      _AutoScrollingQuickActionsState();
-}
-
-class _AutoScrollingQuickActionsState
-    extends State<_AutoScrollingQuickActions> {
-  late final ScrollController _scrollController;
-  Timer? _autoScrollTimer;
-  Timer? _resumeTimer;
-  bool _isUserInteracting = false;
-
-  final List<
-    (_QuickItemData Function(BuildContext), void Function(BuildContext))
-  >
-  _itemBuilders = [
-    (
-      (ctx) => _QuickItemData(
-        icon: Icons.psychology_rounded,
-        label: ctx.tr('quickQuiz'),
-        badge: ctx.tr('quickQuizBadge'),
-        color: AppColors.accentAmber,
+  Widget _buildQuickFeatureScroller(
+    BuildContext context,
+    bool isDark,
+    StudentProfile student,
+  ) {
+    final items = [
+      _QuickItemData(
+        icon: Icons.edit_document,
+        label: 'Ariza',
+        badge: 'Sababli',
+        accentColor: isDark ? const Color(0xFFD3FF32) : const Color(0xFF16A34A),
+        lightBadgeTextColor: const Color(0xFF15803D),
+        onTap: () {
+          AppHaptics.selection();
+          Navigator.of(context).pushNamed(AppRoutes.complaint);
+        },
       ),
-      (ctx) => QuizModal.show(ctx),
-    ),
-    (
-      (ctx) => _QuickItemData(
-        icon: Icons.auto_awesome_rounded,
-        label: ctx.tr('quickAiMentor'),
-        badge: ctx.tr('quickAiMentorBadge'),
-        color: const Color(0xFF6366F1),
+      _QuickItemData(
+        icon: Icons.folder_zip_rounded,
+        label: 'Resurslar',
+        badge: 'PDF/Zip',
+        accentColor: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
+        lightBadgeTextColor: const Color(0xFF075985),
+        onTap: () => ResourcesLibraryModal.show(context),
       ),
-      (ctx) => AiMentorInProgressModal.show(ctx),
-    ),
-    (
-      (ctx) => _QuickItemData(
-        icon: Icons.qr_code_2_rounded,
-        label: ctx.tr('quickQrPass'),
-        badge: ctx.tr('quickQrPassBadge'),
-        color: AppColors.primary,
+      _QuickItemData(
+        icon: Icons.emoji_events_rounded,
+        label: 'Gamifikatsiya',
+        badge: '120 XP',
+        accentColor: isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706),
+        lightBadgeTextColor: const Color(0xFF92400E),
+        onTap: () => GamificationModal.show(context),
       ),
-      (ctx) => StudentIdCardModal.show(ctx),
-    ),
-    (
-      (ctx) => _QuickItemData(
-        icon: Icons.code_rounded,
-        label: ctx.tr('quickHomework'),
-        badge: ctx.tr('quickHomeworkBadge'),
-        color: AppColors.accentPurple,
-      ),
-      (ctx) => HomeworkModal.show(ctx),
-    ),
-    (
-      (ctx) => _QuickItemData(
-        icon: Icons.meeting_room_rounded,
-        label: ctx.tr('quickLabBook'),
-        badge: ctx.tr('quickLabBookBadge'),
-        color: AppColors.secondary,
-      ),
-      (ctx) => LabBookingModal.show(ctx),
-    ),
-    (
-      (ctx) => _QuickItemData(
-        icon: Icons.support_agent_rounded,
-        label: ctx.tr('quickLiveMentor'),
-        badge: ctx.tr('quickLiveMentorBadge'),
-        color: AppColors.success,
-      ),
-      (ctx) => MentorChatModal.show(ctx),
-    ),
-    (
-      (ctx) => _QuickItemData(
-        icon: Icons.rocket_launch_rounded,
-        label: ctx.tr('quickHackathon'),
-        badge: ctx.tr('quickHackathonBadge'),
-        color: const Color(0xFFEC4899),
-      ),
-      (ctx) => QuizModal.show(ctx),
-    ),
-  ];
+    ];
 
-  @override
-  void initState() {
-    super.initState();
-    _scrollController = ScrollController();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _startAutoScroll());
-  }
-
-  void _startAutoScroll() {
-    // Skip continuous infinite timer during automated test runs
-    if (WidgetsBinding.instance.runtimeType.toString().contains('Test')) {
-      return;
-    }
-
-    _autoScrollTimer?.cancel();
-    _autoScrollTimer = Timer.periodic(const Duration(milliseconds: 35), (
-      timer,
-    ) {
-      if (!mounted || !_scrollController.hasClients || _isUserInteracting) {
-        return;
-      }
-      final maxScroll = _scrollController.position.maxScrollExtent;
-      final currentScroll = _scrollController.offset;
-      if (currentScroll >= maxScroll - 2) {
-        _scrollController.jumpTo(0);
-      } else {
-        _scrollController.jumpTo(currentScroll + 1.0);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _autoScrollTimer?.cancel();
-    _resumeTimer?.cancel();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    const repeatCount = 200;
-
-    return RepaintBoundary(
-      child: SizedBox(
-        height: 48,
-        child: NotificationListener<UserScrollNotification>(
-          onNotification: (notification) {
-            if (notification.direction != ScrollDirection.idle) {
-              _isUserInteracting = true;
-              _resumeTimer?.cancel();
-            } else {
-              _resumeTimer?.cancel();
-              _resumeTimer = Timer(const Duration(seconds: 2), () {
-                if (mounted) {
-                  _isUserInteracting = false;
-                }
-              });
-            }
-            return false;
-          },
-          child: ListView.builder(
-            controller: _scrollController,
-            scrollDirection: Axis.horizontal,
-            itemCount: _itemBuilders.length * repeatCount,
-            itemBuilder: (context, index) {
-              final itemIndex = index % _itemBuilders.length;
-              final item = _itemBuilders[itemIndex].$1(context);
-              final onTapAction = _itemBuilders[itemIndex].$2;
-              final effectiveColor = (isDark &&
-                      (item.color == AppColors.primary ||
-                          item.color == AppColors.brandNavy ||
-                          item.color == const Color(0xFF00213D)))
-                  ? AppColors.accentLime
-                  : item.color;
-
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => onTapAction(context),
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final item = items[index];
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                AppHaptics.selection();
+                item.onTap();
+              },
+              borderRadius: BorderRadius.circular(30),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? AppColors.darkSurfaceSecondary
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark
+                          ? Colors.black.withValues(alpha: 0.25)
+                          : const Color(0xFF64748B).withValues(alpha: 0.04),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Icon Container
+                    Container(
+                      padding: const EdgeInsets.all(5),
                       decoration: BoxDecoration(
-                        color: isDark
-                            ? AppColors.darkSurfaceSecondary
-                            : AppColors.surfaceSecondary,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isDark
-                              ? theme.colorScheme.outline
-                              : theme.colorScheme.outline.withValues(
-                                  alpha: 0.8,
-                                ),
+                        color: item.accentColor.withValues(
+                          alpha: isDark ? 0.20 : 0.12,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: isDark
-                                ? Colors.black.withValues(alpha: 0.25)
-                                : Colors.black.withValues(alpha: 0.02),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                        shape: BoxShape.circle,
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(5),
-                            decoration: BoxDecoration(
-                              color: effectiveColor.withValues(
-                                alpha: isDark ? 0.25 : 0.15,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(item.icon, color: effectiveColor, size: 16),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            item.label,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: effectiveColor.withValues(
-                                alpha: isDark ? 0.2 : 0.12,
-                              ),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              item.badge,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                color: effectiveColor,
-                              ),
-                            ),
-                          ),
-                        ],
+                      child: Icon(item.icon, color: item.accentColor, size: 15),
+                    ),
+                    const SizedBox(width: 7),
+
+                    // Title Text
+                    Text(
+                      item.label,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? AppColors.darkTextPrimary : const Color(0xFF0F172A),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 6),
+
+                    // Badge Pill
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: item.accentColor.withValues(
+                          alpha: isDark ? 0.20 : 0.12,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: item.accentColor.withValues(
+                            alpha: isDark ? 0.35 : 0.25,
+                          ),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Text(
+                        item.badge,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : item.lightBadgeTextColor,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              );
-            },
-          ),
-        ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -568,11 +563,15 @@ class _QuickItemData {
     required this.icon,
     required this.label,
     required this.badge,
-    required this.color,
+    required this.accentColor,
+    required this.lightBadgeTextColor,
+    required this.onTap,
   });
 
   final IconData icon;
   final String label;
   final String badge;
-  final Color color;
+  final Color accentColor;
+  final Color lightBadgeTextColor;
+  final VoidCallback onTap;
 }

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
-import 'package:m_it_student_platform/features/auth/data/repositories/mock_auth_repository.dart';
+import 'package:m_it_student_platform/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:m_it_student_platform/features/auth/presentation/screens/login_screen.dart';
 
 class LogoutDialog extends StatelessWidget {
@@ -65,15 +66,15 @@ class LogoutDialog extends StatelessWidget {
           ),
         ),
         ElevatedButton(
-          onPressed: () async {
+          onPressed: () {
             Navigator.pop(context);
-            await MockAuthRepository.instance.logout();
-            if (context.mounted) {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
-            }
+            try {
+              context.read<AuthBloc>().add(const AuthLogoutRequestedEvent());
+            } catch (_) {}
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+              (route) => false,
+            );
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.danger,

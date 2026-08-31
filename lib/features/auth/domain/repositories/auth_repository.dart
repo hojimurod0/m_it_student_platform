@@ -14,4 +14,9 @@ abstract class AuthRepository {
   Future<UserModel> login({required String phone, required String password});
   Future<void> logout();
   Future<UserModel?> restoreSession();
+  Future<void> sendFcmToken(String fcmToken);
+  Future<void> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  });
 }

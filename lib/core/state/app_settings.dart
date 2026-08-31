@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:m_it_student_platform/core/storage/local_storage_service.dart';
 
 enum AppLanguage {
   uz('O\'zbek tili', '🇺🇿', Locale('uz')),
@@ -14,10 +15,10 @@ enum AppLanguage {
 
 class AppSettings extends ChangeNotifier {
   AppSettings({
-    ThemeMode initialThemeMode = ThemeMode.system,
-    AppLanguage initialLanguage = AppLanguage.uz,
-  })  : _themeMode = initialThemeMode,
-        _language = initialLanguage;
+    ThemeMode? initialThemeMode,
+    AppLanguage? initialLanguage,
+  })  : _themeMode = initialThemeMode ?? LocalStorageService.getThemeMode(),
+        _language = initialLanguage ?? LocalStorageService.getLanguage();
 
   ThemeMode _themeMode;
   AppLanguage _language;
@@ -29,6 +30,7 @@ class AppSettings extends ChangeNotifier {
   void setThemeMode(ThemeMode mode) {
     if (_themeMode != mode) {
       _themeMode = mode;
+      LocalStorageService.saveThemeMode(mode);
       notifyListeners();
     }
   }
@@ -36,6 +38,7 @@ class AppSettings extends ChangeNotifier {
   void setLanguage(AppLanguage lang) {
     if (_language != lang) {
       _language = lang;
+      LocalStorageService.saveLanguage(lang);
       notifyListeners();
     }
   }

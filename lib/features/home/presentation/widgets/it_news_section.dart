@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
 import 'package:m_it_student_platform/core/widgets/section_header.dart';
+import 'package:m_it_student_platform/core/widgets/ui/mit_toast.dart';
 import 'package:m_it_student_platform/features/home/data/repositories/it_news_repository.dart';
 import 'package:m_it_student_platform/features/home/domain/models/it_news_model.dart';
 import 'package:m_it_student_platform/features/home/presentation/widgets/it_news_card.dart';
@@ -87,24 +88,11 @@ class _ItNewsSectionState extends State<ItNewsSection>
       if (_bookmarkedUrls.contains(article.url)) {
         _bookmarkedUrls.remove(article.url);
         _bookmarkedArticles.removeWhere((a) => a.url == article.url);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Maqola saqlanganlardan o\'chirildi'),
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 2),
-          ),
-        );
+        MitToast.info(context, context.tr('bookmarkRemoved'));
       } else {
         _bookmarkedUrls.add(article.url);
         _bookmarkedArticles.add(article);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Maqola "Saqlanganlar" ro\'yxatiga qo\'shildi! ⭐️'),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 2),
-          ),
-        );
+        MitToast.success(context, context.tr('bookmarkAdded'));
       }
     });
   }
@@ -155,6 +143,7 @@ class _ItNewsSectionState extends State<ItNewsSection>
                       article.coverImageUrl!,
                       height: 190,
                       width: double.infinity,
+                      cacheWidth: 800,
                       fit: BoxFit.cover,
                       errorBuilder: (_, e, s) => const SizedBox(height: 8),
                     ),
@@ -268,7 +257,7 @@ class _ItNewsSectionState extends State<ItNewsSection>
                                   Text(
                                     article.publishedAt.isNotEmpty
                                         ? article.publishedAt
-                                        : 'Yangi maqola',
+                                        : context.tr('newArticle'),
                                     style: TextStyle(
                                       fontSize: 10.5,
                                       color: isDark
@@ -323,7 +312,7 @@ class _ItNewsSectionState extends State<ItNewsSection>
                         Text(
                           article.description.isNotEmpty
                               ? article.description
-                              : 'Maqolaning to\'liq matnini rasmiy saytdan o\'qishingiz mumkin.',
+                              : context.tr('fullArticleOnWeb'),
                           style: TextStyle(
                             fontSize: 14.5,
                             height: 1.65,
@@ -350,18 +339,12 @@ class _ItNewsSectionState extends State<ItNewsSection>
                                 ),
                                 onPressed: () {
                                   Clipboard.setData(ClipboardData(text: article.url));
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Havola xotiraga nusxalandi!'),
-                                      behavior: SnackBarBehavior.floating,
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
+                                  MitToast.success(context, context.tr('linkCopied'));
                                 },
                                 icon: const Icon(Icons.copy_rounded, size: 17),
-                                label: const Text(
-                                  'Havola nusxasi',
-                                  style: TextStyle(
+                                label: Text(
+                                  context.tr('copyLink'),
+                                  style: const TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 13,
                                   ),
@@ -386,15 +369,9 @@ class _ItNewsSectionState extends State<ItNewsSection>
                                 ),
                                 onPressed: () {
                                   Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Rasmiy sayt: ${article.url}'),
-                                      behavior: SnackBarBehavior.floating,
-                                      backgroundColor: isDark
-                                          ? AppColors.darkSurfaceSecondary
-                                          : AppColors.primary,
-                                      duration: const Duration(seconds: 4),
-                                    ),
+                                  MitToast.info(
+                                    context,
+                                    '${context.tr('openingSite')}: ${article.url}',
                                   );
                                 },
                                 icon: const Icon(Icons.open_in_browser_rounded, size: 18),
@@ -437,7 +414,9 @@ class _ItNewsSectionState extends State<ItNewsSection>
           child: SectionHeader(
             title: context.tr('itNewsTitle'),
             subtitle: context.tr('itNewsSub'),
-            actionLabel: _showSavedOnly ? 'Barcha yangiliklar' : '⭐️ Saqlanganlar (${_bookmarkedArticles.length})',
+            actionLabel: _showSavedOnly
+                ? context.tr('allNews')
+                : '${context.tr('savedArticlesCount')} (${_bookmarkedArticles.length})',
             onAction: () {
               setState(() => _showSavedOnly = !_showSavedOnly);
             },
@@ -460,7 +439,7 @@ class _ItNewsSectionState extends State<ItNewsSection>
               onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
               style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface),
               decoration: InputDecoration(
-                hintText: 'IT yangiliklari bo\'yicha qidiruv...',
+                hintText: context.tr('searchItNews'),
                 hintStyle: TextStyle(
                   fontSize: 12.5,
                   color: isDark ? const Color(0xFF94A3B8) : AppColors.textMuted,
@@ -505,7 +484,7 @@ class _ItNewsSectionState extends State<ItNewsSection>
                     const Icon(Icons.bookmark_border_rounded, size: 30, color: AppColors.accentAmber),
                     const SizedBox(height: 6),
                     Text(
-                      'Hozircha saqlangan maqolalar yo\'q',
+                      context.tr('noSavedArticles'),
                       style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
@@ -575,7 +554,7 @@ class _ItNewsSectionState extends State<ItNewsSection>
                           ),
                         ),
                         child: Text(
-                          cat.label,
+                          cat == ItNewsCategory.all ? context.tr('all') : cat.label,
                           style: TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w700,

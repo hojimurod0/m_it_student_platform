@@ -14,3 +14,7 @@ class AppScope extends InheritedNotifier<AppSettings> {
     return scope!.notifier!;
   }
 }
+
+extension AppScopeContext on BuildContext {
+  AppSettings get appSettings => AppScope.of(this);
+}

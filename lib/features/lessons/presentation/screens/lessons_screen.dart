@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:m_it_student_platform/core/constants/app_colors.dart';
+import 'package:m_it_student_platform/core/di/injection_container.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
+import 'package:m_it_student_platform/core/storage/app_cache_service.dart';
 import 'package:m_it_student_platform/core/utils/haptics.dart';
+import 'package:m_it_student_platform/core/widgets/shimmer_loading.dart';
+import 'package:m_it_student_platform/features/home/domain/repositories/home_repository.dart';
+import 'package:m_it_student_platform/features/lessons/data/repositories/lessons_repository_impl.dart';
 import 'package:m_it_student_platform/features/lessons/data/repositories/mock_lessons_repository.dart';
 import 'package:m_it_student_platform/features/lessons/domain/models/lesson_model.dart';
+import 'package:m_it_student_platform/features/lessons/domain/repositories/lessons_repository.dart';
 import 'package:m_it_student_platform/features/lessons/presentation/widgets/lesson_details_sheet.dart';
 
 class LessonsScreen extends StatefulWidget {
@@ -15,83 +20,86 @@ class LessonsScreen extends StatefulWidget {
 
 class _LessonsScreenState extends State<LessonsScreen>
     with AutomaticKeepAliveClientMixin {
-  int _selectedTab = 0; // 0 = Mavzular, 1 = Imtihon
-  String _selectedCourse = MockLessonsRepository.availableCourses.first;
+  late final LessonsRepository _lessonsRepo;
+
+  TopicStatus? _activeStatusFilter;
+  Lesson? _activeLesson;
+  List<TopicModel> _topics = [];
+  bool _isLessonsLoading = true;
 
   @override
   bool get wantKeepAlive => true;
 
-  void _showCourseSelector(BuildContext context) {
-    AppHaptics.light();
-    final theme = Theme.of(context);
+  @override
+  void initState() {
+    super.initState();
+    _lessonsRepo = sl.isRegistered<LessonsRepository>()
+        ? sl<LessonsRepository>()
+        : LessonsRepositoryImpl();
 
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 16,
-            bottom: MediaQuery.of(ctx).padding.bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.outline,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'O\'quv guruhini tanlang',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ...MockLessonsRepository.availableCourses.map((course) {
-                final isSelected = course == _selectedCourse;
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    course,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                      color: isSelected
-                          ? AppColors.primary
-                          : theme.colorScheme.onSurface,
-                    ),
-                  ),
-                  trailing: isSelected
-                      ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
-                      : null,
-                  onTap: () {
-                    setState(() => _selectedCourse = course);
-                    Navigator.pop(ctx);
-                  },
-                );
-              }),
-            ],
-          ),
-        );
-      },
-    );
+    // Instant offline-cache hydration
+    final cachedFeatured = AppCacheService.getCache(AppCacheService.keyFeaturedClass);
+    if (cachedFeatured is Map<String, dynamic>) {
+      _activeLesson = Lesson.fromJson(cachedFeatured);
+      _isLessonsLoading = false;
+    }
+    final cachedLessons = AppCacheService.getCache(AppCacheService.keyLessons);
+    if (cachedLessons is List && _activeLesson == null) {
+      final list = cachedLessons.whereType<Map<String, dynamic>>().map(Lesson.fromJson).toList();
+      if (list.isNotEmpty) {
+        _activeLesson = list.first;
+        _isLessonsLoading = false;
+      }
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadLessonsData();
+      }
+    });
+  }
+
+  Future<void> _loadLessonsData() async {
+    if (!mounted) return;
+    if (_activeLesson == null && _topics.isEmpty) {
+      setState(() => _isLessonsLoading = true);
+    }
+
+    try {
+      final results = await Future.wait([
+        _lessonsRepo.getTodayLessons().catchError((_) => <Lesson>[]),
+        _lessonsRepo.getLessonTopics().catchError((_) => <TopicModel>[]),
+        sl<HomeRepository>().getFeaturedClass().catchError((_) => MockLessonsRepository.todayLessons.first),
+      ]);
+
+      if (!mounted) return;
+
+      final todayLessons = results[0] as List<Lesson>;
+      final topics = results[1] as List<TopicModel>;
+      final featured = results[2] as Lesson;
+
+      setState(() {
+        if (todayLessons.isNotEmpty) {
+          _activeLesson = todayLessons.first;
+        } else {
+          _activeLesson ??= featured;
+        }
+        if (topics.isNotEmpty) {
+          _topics = topics;
+        } else if (_topics.isEmpty) {
+          _topics = MockLessonsRepository.topics;
+        }
+        _isLessonsLoading = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          if (_topics.isEmpty) _topics = MockLessonsRepository.topics;
+          _activeLesson ??= MockLessonsRepository.todayLessons.first;
+          _isLessonsLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -99,87 +107,98 @@ class _LessonsScreenState extends State<LessonsScreen>
     super.build(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final topics = MockLessonsRepository.topics;
-    final newHomeworks = topics.where((t) => t.isNewHomework).toList();
+
+    final allTopics = _topics;
+    final filteredTopics = _activeStatusFilter == null
+        ? allTopics
+        : allTopics.where((t) => t.status == _activeStatusFilter).toList();
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         bottom: false,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Top Header Title: Mavzular
-            Container(
-              color: theme.colorScheme.surface,
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
-              child: Column(
+            // 1. Top Header (Har doim ochiq, Shimmersiz)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Center(
-                    child: Text(
-                      context.tr('topicsTitle'),
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: theme.colorScheme.onSurface,
-                        letterSpacing: -0.3,
-                      ),
+                  Text(
+                    context.tr('navLessons'),
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: theme.colorScheme.onSurface,
+                      letterSpacing: -0.5,
                     ),
                   ),
-                  const SizedBox(height: 12),
-
-                  // Course Dropdown Selector Button
-                  GestureDetector(
-                    onTap: () => _showCourseSelector(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: theme.colorScheme.outline),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              _selectedCourse,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w700,
-                                color: theme.colorScheme.onSurface,
-                              ),
-                            ),
-                          ),
-                          Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            size: 22,
-                            color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
-                          ),
-                        ],
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD3FF32).withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFFD3FF32).withValues(alpha: 0.4),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 2. Tab Bar: Mavzular | Imtihon
-                  Row(
-                    children: [
-                      _buildTabItem(0, context.tr('topicsTab'), isDark, theme),
-                      _buildTabItem(1, context.tr('examsTab'), isDark, theme),
-                    ],
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.school_rounded, size: 14, color: Color(0xFF769B00)),
+                        const SizedBox(width: 5),
+                        Text(
+                          '${allTopics.length} ${context.tr('lessonsCount')}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF769B00),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-            Divider(height: 1, color: theme.colorScheme.outline),
 
-            // Main Tab Content
+            // 2. Body: Darslar va Mavzular (Sarlavhalar statik, kartalarga esa o'lchami bir xil shimmer berilgan)
             Expanded(
-              child: _selectedTab == 0
-                  ? _buildTopicsView(context, isDark, theme, topics, newHomeworks)
-                  : _buildExamsView(context, isDark, theme),
+              child: RefreshIndicator(
+                onRefresh: _loadLessonsData,
+                color: const Color(0xFFD3FF32),
+                backgroundColor: isDark ? const Color(0xFF001E36) : Colors.white,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 90),
+                  children: [
+                    // 1. Active Lesson Card (Yuklanayotganda o'z o'lchamida shimmer)
+                    if (_isLessonsLoading)
+                      const ShimmerCardSkeleton(height: 165)
+                    else if (_activeLesson != null)
+                      _buildActiveLessonCard(_activeLesson!, isDark, theme),
+                    const SizedBox(height: 20),
+
+                    // 2. Topics Header with Filter (Har doim ochiq, Shimmersiz)
+                    _buildTopicsHeader(context, isDark, theme, allTopics),
+                    const SizedBox(height: 12),
+
+                    // 3. Topics & Homework List (Yuklanayotganda o'z o'lchamida card shimmer)
+                    if (_isLessonsLoading)
+                      const ShimmerTopicListSkeleton(itemCount: 4)
+                    else if (filteredTopics.isEmpty)
+                      _buildEmptyTopics(isDark)
+                    else
+                      ...filteredTopics.map(
+                        (topic) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _buildTopicTile(topic, isDark, theme),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -187,611 +206,503 @@ class _LessonsScreenState extends State<LessonsScreen>
     );
   }
 
-  Widget _buildTabItem(int index, String label, bool isDark, ThemeData theme) {
-    final isSelected = _selectedTab == index;
-    return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () {
-          if (_selectedTab != index) {
-            AppHaptics.selection();
-            setState(() => _selectedTab = index);
-          }
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: isSelected ? AppColors.primary : Colors.transparent,
-                width: 2.5,
-              ),
-            ),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                color: isSelected
-                    ? (isDark ? AppColors.primaryAccent : AppColors.primary)
-                    : (isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _buildActiveLessonCard(Lesson lesson, bool isDark, ThemeData theme) {
+    final lessonTimeString = lesson.startTime.isNotEmpty && lesson.endTime.isNotEmpty
+        ? '${lesson.startTime} - ${lesson.endTime}'
+        : (lesson.startTime.isNotEmpty ? lesson.startTime : '');
 
-  Widget _buildTopicsView(
-    BuildContext context,
-    bool isDark,
-    ThemeData theme,
-    List<TopicModel> topics,
-    List<TopicModel> newHomeworks,
-  ) {
-    return RefreshIndicator(
-      onRefresh: () async {
-        AppHaptics.light();
-        await Future<void>.delayed(const Duration(milliseconds: 350));
-      },
-      child: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        children: [
-        // 1. 🔥 Yangi vazifalar (Screenshot 1)
-        if (newHomeworks.isNotEmpty) ...[
-          Row(
-            children: [
-              const Text('🔥', style: TextStyle(fontSize: 16)),
-              const SizedBox(width: 6),
-              Text(
-                context.tr('newHomework'),
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
+    final activeTopic = _topics.isNotEmpty ? _topics.first : null;
+    final topicTitle = (activeTopic != null && activeTopic.title.isNotEmpty)
+        ? activeTopic.title
+        : (lesson.syllabusTopic != null && lesson.syllabusTopic!.isNotEmpty ? lesson.syllabusTopic! : '');
+    final hasDistinctTopic = topicTitle.isNotEmpty && topicTitle != lesson.subject;
+    final mainTitle = hasDistinctTopic ? topicTitle : (lesson.subject.isNotEmpty ? lesson.subject : 'Bugungi dars');
+    final subtitleText = hasDistinctTopic && lesson.subject.isNotEmpty ? '${context.tr('groupPrefix')}: ${lesson.subject}' : null;
 
-          // Emerald Banner Card
-          _buildNewHomeworkBanner(newHomeworks.first, context, isDark),
-          const SizedBox(height: 8),
-
-          // Carousel Pagination Dots
-          Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 16,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF6366F1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFC7D2FE),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFC7D2FE),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-        ],
-
-        // 2. Vazifalar tarixi (Screenshot 1 Grid)
-        Text(
-          context.tr('homeworkHistory'),
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        Row(
-          children: [
-            // Tekshirishni kutayotgan
-            Expanded(
-              child: _buildHistoryStatusCard(
-                icon: Icons.access_time_filled_rounded,
-                iconColor: const Color(0xFFF59E0B),
-                iconBg: const Color(0xFFFEF3C7),
-                title: context.tr('pendingReview'),
-                count: MockLessonsRepository.pendingReviewCount,
-                isDark: isDark,
-                theme: theme,
-              ),
-            ),
-            const SizedBox(width: 10),
-
-            // Qaytarilgan vazifalar
-            Expanded(
-              child: _buildHistoryStatusCard(
-                icon: Icons.assignment_return_rounded,
-                iconColor: const Color(0xFFEF4444),
-                iconBg: const Color(0xFFFEE2E2),
-                title: context.tr('returnedHomework'),
-                count: MockLessonsRepository.returnedCount,
-                isDark: isDark,
-                theme: theme,
-              ),
-            ),
-            const SizedBox(width: 10),
-
-            // Qabul qilingan vazifalar
-            Expanded(
-              child: _buildHistoryStatusCard(
-                icon: Icons.check_circle_rounded,
-                iconColor: const Color(0xFF10B981),
-                iconBg: const Color(0xFFD1FAE5),
-                title: context.tr('acceptedHomework'),
-                count: MockLessonsRepository.acceptedCount,
-                isDark: isDark,
-                theme: theme,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-
-        // 3. Mavzular (Screenshot 1 & 2 Topic Cards)
-        Text(
-          context.tr('topicsTitle'),
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        ...topics.map((topic) => _buildTopicCard(topic, context, isDark, theme)),
-        const SizedBox(height: 24),
-      ],
-    ));
-  }
-
-  Widget _buildNewHomeworkBanner(TopicModel topic, BuildContext context, bool isDark) {
     return GestureDetector(
       onTap: () {
-        TopicDetailsSheet.show(context, topic, onSubmitted: () => setState(() {}));
+        AppHaptics.light();
+        LessonDetailsSheet.show(context, lesson);
       },
       child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
+            colors: isDark
+                ? [const Color(0xFF001F3D), const Color(0xFF00305C)]
+                : [const Color(0xFF00274D), const Color(0xFF004480)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF059669),
-              Color(0xFF10B981),
-              Color(0xFF047857),
-            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: const Color(0xFFD3FF32).withValues(alpha: 0.3),
+            width: 1.2,
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF059669).withValues(alpha: 0.28),
-              blurRadius: 14,
+              color: const Color(0xFF001F3D).withValues(alpha: isDark ? 0.4 : 0.2),
+              blurRadius: 16,
               offset: const Offset(0, 6),
             ),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              topic.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-                letterSpacing: -0.3,
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            if (topic.givenDate.isNotEmpty) ...[
-              Row(
-                children: [
-                  const Icon(Icons.calendar_today_rounded, size: 14, color: Colors.white70),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      '${context.tr('givenDateLabel')}: ${topic.givenDate}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-            ],
-
-            if (topic.deadline.isNotEmpty)
-              Row(
-                children: [
-                  const Icon(Icons.timer_outlined, size: 14, color: Colors.white70),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      '${context.tr('deadlineLabel')}: ${topic.deadline}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHistoryStatusCard({
-    required IconData icon,
-    required Color iconColor,
-    required Color iconBg,
-    required String title,
-    required int count,
-    required bool isDark,
-    required ThemeData theme,
-  }) {
-    return Container(
-      height: 108,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.colorScheme.outline),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, size: 16, color: iconColor),
-              ),
-              Text(
-                '$count',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? const Color(0xFFCBD5E1) : AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          Text(
-            title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              height: 1.25,
-              color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTopicCard(
-    TopicModel topic,
-    BuildContext context,
-    bool isDark,
-    ThemeData theme,
-  ) {
-    Color badgeBg;
-    Color badgeTextColor;
-    String badgeText;
-
-    switch (topic.status) {
-      case TopicStatus.notDone:
-        badgeBg = const Color(0xFFFEE2E2);
-        badgeTextColor = const Color(0xFFDC2626);
-        badgeText = context.tr('statusNotDone');
-        break;
-      case TopicStatus.done:
-        badgeBg = const Color(0xFFD1FAE5);
-        badgeTextColor = const Color(0xFF059669);
-        badgeText = context.tr('statusDone');
-        break;
-      case TopicStatus.notSubmitted:
-        badgeBg = const Color(0xFFEDE9FE);
-        badgeTextColor = const Color(0xFF7C3AED);
-        badgeText = context.tr('statusNotSubmitted');
-        break;
-      case TopicStatus.notGiven:
-        badgeBg = isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9);
-        badgeTextColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-        badgeText = context.tr('statusNotGiven');
-        break;
-    }
-
-    return GestureDetector(
-      onTap: () {
-        TopicDetailsSheet.show(context, topic, onSubmitted: () => setState(() {}));
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: theme.colorScheme.outline),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    topic.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w800,
-                      color: theme.colorScheme.onSurface,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: badgeBg,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    badgeText,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: badgeTextColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Flexible(
-                  child: Text(
-                    topic.givenDate.isNotEmpty ? topic.givenDate : '-',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD3FF32).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFFD3FF32).withValues(alpha: 0.6),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.play_circle_fill_rounded,
+                            size: 13, color: Color(0xFFD3FF32)),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            lesson.isActive ? context.tr('activeNow') : context.tr('todayLesson'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFFD3FF32),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (topic.deadline.contains(':') || topic.deadline.contains('Noy')) ...[
-                      const Icon(Icons.timer_outlined, size: 13, color: Color(0xFFEF4444)),
-                      const SizedBox(width: 4),
-                    ],
-                    Text(
-                      topic.deadline.isNotEmpty ? topic.deadline : '-',
+                if (lesson.scheduleDays.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      lesson.scheduleDays,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: (topic.deadline.contains(':') || topic.deadline.contains('Noy'))
-                            ? const Color(0xFFEF4444)
-                            : (isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ],
             ),
+            const SizedBox(height: 12),
+            Text(
+              mainTitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.3,
+                height: 1.25,
+              ),
+            ),
+            if (subtitleText != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                subtitleText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            if (lesson.teacher.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.person_pin_rounded,
+                      size: 16, color: Color(0xFFD3FF32)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      "${context.tr('mentor')}: ${lesson.teacher}",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (lessonTimeString.isNotEmpty || lesson.room.isNotEmpty || (lesson.branchName != null && lesson.branchName!.isNotEmpty)) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  if (lessonTimeString.isNotEmpty)
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.access_time_rounded,
+                                size: 14, color: Color(0xFFD3FF32)),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                lessonTimeString,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (lessonTimeString.isNotEmpty && (lesson.room.isNotEmpty || (lesson.branchName != null && lesson.branchName!.isNotEmpty)))
+                    const SizedBox(width: 8),
+                  if (lesson.room.isNotEmpty || (lesson.branchName != null && lesson.branchName!.isNotEmpty))
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.meeting_room_rounded,
+                                size: 14, color: Color(0xFFD3FF32)),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                lesson.room.isNotEmpty ? lesson.room : (lesson.branchName ?? context.tr('mainRoom')),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildExamsView(BuildContext context, bool isDark, ThemeData theme) {
-    final exams = MockLessonsRepository.exams;
-
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+  Widget _buildTopicsHeader(BuildContext context, bool isDark, ThemeData theme, List<TopicModel> allTopics) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            const Text('🏆', style: TextStyle(fontSize: 16)),
-            const SizedBox(width: 6),
-            Text(
-              'Imtihonlar va Baholar',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: theme.colorScheme.onSurface,
+        Expanded(
+          child: Text(
+            context.tr('topicsAndHomework'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 15.5,
+              fontWeight: FontWeight.w800,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        PopupMenuButton<TopicStatus?>(
+          initialValue: _activeStatusFilter,
+          onSelected: (status) {
+            AppHaptics.selection();
+            setState(() => _activeStatusFilter = status);
+          },
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        ...exams.map((exam) {
-          final isPassed = exam.status == 'Topshirilgan';
-          return Container(
-            margin: const EdgeInsets.only(bottom: 14),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: theme.colorScheme.outline),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.filter_list_rounded,
+                    size: 16,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                const SizedBox(width: 4),
+                Text(
+                  _getStatusFilterLabel(context, _activeStatusFilter),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : const Color(0xFF001E36),
+                  ),
                 ),
               ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          ),
+          itemBuilder: (context) => [
+            PopupMenuItem(value: null, child: Text(context.tr('all'))),
+            PopupMenuItem(value: TopicStatus.done, child: Text(context.tr('topicDone'))),
+            PopupMenuItem(value: TopicStatus.notDone, child: Text(context.tr('topicNotDone'))),
+            PopupMenuItem(value: TopicStatus.notSubmitted, child: Text(context.tr('topicNotSubmitted'))),
+            PopupMenuItem(value: TopicStatus.notGiven, child: Text(context.tr('topicNotGiven'))),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTopicTile(TopicModel topic, bool isDark, ThemeData theme) {
+    Color statusColor;
+    IconData statusIcon;
+    String statusText;
+
+    switch (topic.status) {
+      case TopicStatus.done:
+        statusColor = const Color(0xFF10B981);
+        statusIcon = Icons.check_circle_rounded;
+        statusText = context.tr('topicDone');
+        break;
+      case TopicStatus.notDone:
+        statusColor = const Color(0xFFF59E0B);
+        statusIcon = Icons.timelapse_rounded;
+        statusText = context.tr('topicNotDone');
+        break;
+      case TopicStatus.notSubmitted:
+        statusColor = const Color(0xFFEF4444);
+        statusIcon = Icons.error_outline_rounded;
+        statusText = context.tr('topicNotSubmitted');
+        break;
+      case TopicStatus.notGiven:
+        statusColor = const Color(0xFF64748B);
+        statusIcon = Icons.lock_clock_rounded;
+        statusText = context.tr('topicNotGiven');
+        break;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          AppHaptics.light();
+          TopicDetailsSheet.show(
+            context,
+            topic,
+            onSubmitted: _loadLessonsData,
+          );
+        },
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF001E36) : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isDark ? const Color(0xFF002F52) : const Color(0xFFE2E8F0),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(statusIcon, color: statusColor, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        exam.title,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: theme.colorScheme.onSurface,
-                        ),
+                    Text(
+                      topic.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 2,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD3FF32).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.assignment_outlined, size: 11, color: Color(0xFF769B00)),
+                              const SizedBox(width: 3),
+                              Flexible(
+                                child: Text(
+                                  context.tr('taskAvailable'),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF769B00),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (topic.description.isNotEmpty)
+                          Text(
+                            topic.description,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 105),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
-                        color: isPassed
-                            ? const Color(0xFFD1FAE5)
-                            : (isDark ? const Color(0xFF334155) : const Color(0xFFFEF3C7)),
+                        color: statusColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        isPassed ? 'Topshirilgan' : 'Kutilmoqda',
+                        statusText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10.5,
                           fontWeight: FontWeight.w700,
-                          color: isPassed
-                              ? const Color(0xFF059669)
-                              : (isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706)),
+                          color: statusColor,
                         ),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  exam.description,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    height: 1.4,
-                    color: isDark ? const Color(0xFFCBD5E1) : AppColors.textSecondary,
                   ),
-                ),
-                const SizedBox(height: 14),
-                Divider(color: theme.colorScheme.outline),
-                const SizedBox(height: 10),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.primary),
-                        const SizedBox(width: 5),
-                        Text(
-                          exam.date,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (exam.score != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: isDark ? 0.25 : 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'Ball: ${exam.score}/100',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        }),
-      ],
+                  const SizedBox(height: 4),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
+  }
+
+  Widget _buildEmptyTopics(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      alignment: Alignment.center,
+      child: Column(
+        children: [
+          Icon(Icons.search_off_rounded,
+              size: 48,
+              color: isDark ? const Color(0xFF475569) : const Color(0xFF94A3B8)),
+          const SizedBox(height: 12),
+          Text(
+            context.tr('noTopicsFound'),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : const Color(0xFF001E36),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            context.tr('noTopicsSub'),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12.5,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getStatusFilterLabel(BuildContext context, TopicStatus? status) {
+    switch (status) {
+      case TopicStatus.done:
+        return context.tr('topicDone');
+      case TopicStatus.notDone:
+        return context.tr('topicNotDone');
+      case TopicStatus.notSubmitted:
+        return context.tr('topicNotSubmitted');
+      case TopicStatus.notGiven:
+        return context.tr('topicNotGiven');
+      case null:
+        return context.tr('filter');
+    }
   }
 }

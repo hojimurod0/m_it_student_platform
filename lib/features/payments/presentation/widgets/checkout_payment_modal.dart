@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
+import 'package:m_it_student_platform/core/services/payment_service.dart';
+import 'package:m_it_student_platform/core/widgets/ui/mit_toast.dart';
+import 'package:m_it_student_platform/features/profile/data/repositories/mock_profile_repository.dart';
 
 class CheckoutPaymentModal extends StatefulWidget {
   const CheckoutPaymentModal({super.key, this.initialAmount = 400000});
@@ -24,13 +27,6 @@ class _CheckoutPaymentModalState extends State<CheckoutPaymentModal> {
   int _selectedMethod = 0;
   late final TextEditingController _amountController;
 
-  final List<(String, String, IconData)> _paymentMethods = [
-    ('Payme Mobile', '0% komissiya, tezkor to\'lov', Icons.phone_android_rounded),
-    ('Click Evolution', 'Uzcard / Humo orqali to\'lov', Icons.touch_app_rounded),
-    ('Uzum Bank', 'Tezkor QR to\'lov va keshbek', Icons.account_balance_wallet_rounded),
-    ('O\'quv Markaz Kassasi', 'Naqd yoki terminal orqali', Icons.storefront_rounded),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -48,12 +44,16 @@ class _CheckoutPaymentModalState extends State<CheckoutPaymentModal> {
     super.dispose();
   }
 
+  String _formatAmount(double amount) {
+    return amount.toStringAsFixed(0).replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]} ',
+        );
+  }
+
   void _setAmount(double amount) {
     setState(() {
-      _amountController.text = amount.toStringAsFixed(0).replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-            (m) => '${m[1]} ',
-          );
+      _amountController.text = _formatAmount(amount);
     });
   }
 
@@ -61,6 +61,13 @@ class _CheckoutPaymentModalState extends State<CheckoutPaymentModal> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    final List<(String, String, IconData)> paymentMethods = [
+      ('Payme Mobile', context.tr('paymeSub'), Icons.phone_android_rounded),
+      ('Click Evolution', context.tr('clickSub'), Icons.touch_app_rounded),
+      ('Uzum Bank', context.tr('uzumSub'), Icons.account_balance_wallet_rounded),
+      (context.tr('studyCenterCashier'), context.tr('cashSub'), Icons.storefront_rounded),
+    ];
 
     return Container(
       decoration: BoxDecoration(
@@ -137,7 +144,7 @@ class _CheckoutPaymentModalState extends State<CheckoutPaymentModal> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '1 oylik kurs to\'lovi',
+                          context.tr('monthlyRateSummary'),
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -146,7 +153,7 @@ class _CheckoutPaymentModalState extends State<CheckoutPaymentModal> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '400 000 so\'m / oy',
+                          '${_formatAmount(widget.initialAmount > 0 ? widget.initialAmount : 500000)} ${context.tr('currencySom')} / ${context.tr('monthUnit')}',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
@@ -157,8 +164,8 @@ class _CheckoutPaymentModalState extends State<CheckoutPaymentModal> {
                     ),
                   ),
                   TextButton(
-                    onPressed: () => _setAmount(400000),
-                    child: const Text('Tanlash', style: TextStyle(fontWeight: FontWeight.w700)),
+                    onPressed: () => _setAmount(widget.initialAmount > 0 ? widget.initialAmount : 500000),
+                    child: Text(context.tr('select'), style: const TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ],
               ),
@@ -184,10 +191,10 @@ class _CheckoutPaymentModalState extends State<CheckoutPaymentModal> {
                         fontWeight: FontWeight.w800,
                         color: theme.colorScheme.onSurface,
                       ),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         border: InputBorder.none,
-                        hintText: 'To\'lov summasi',
-                        suffixText: 'so\'m',
+                        hintText: context.tr('paymentAmount'),
+                        suffixText: context.tr('currencySom'),
                       ),
                     ),
                   ),
@@ -206,8 +213,8 @@ class _CheckoutPaymentModalState extends State<CheckoutPaymentModal> {
             ),
             const SizedBox(height: 10),
 
-            ...List.generate(_paymentMethods.length, (index) {
-              final method = _paymentMethods[index];
+            ...List.generate(paymentMethods.length, (index) {
+              final method = paymentMethods[index];
               final isSelected = _selectedMethod == index;
 
               return GestureDetector(
@@ -290,21 +297,37 @@ class _CheckoutPaymentModalState extends State<CheckoutPaymentModal> {
             const SizedBox(height: 16),
 
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
+                final rawAmount = double.tryParse(_amountController.text.replaceAll(' ', '')) ?? widget.initialAmount;
+                final studentId = MockProfileRepository.currentStudent.id;
+                final provider = switch (_selectedMethod) {
+                  0 => PaymentProvider.payme,
+                  1 => PaymentProvider.click,
+                  2 => PaymentProvider.uzum,
+                  _ => PaymentProvider.cashier,
+                };
+
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '${_paymentMethods[_selectedMethod].$1} orqali ${_amountController.text} so\'m to\'lov oynasiga yo\'naltirilmoqda...',
-                    ),
-                  ),
+
+                if (provider != PaymentProvider.cashier) {
+                  MitToast.info(
+                    context,
+                    '${paymentMethods[_selectedMethod].$1} (${_amountController.text} ${context.tr('currencySom')}) ${context.tr('redirectingToPayment')}',
+                  );
+                }
+
+                await PaymentService.launchPayment(
+                  context: context,
+                  provider: provider,
+                  amount: rawAmount,
+                  studentId: studentId,
                 );
               },
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               child: Text(
-                '${context.tr('proceedPayment')} (${_amountController.text} so\'m)',
+                '${context.tr('proceedPayment')} (${_amountController.text} ${context.tr('currencySom')})',
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
               ),
             ),

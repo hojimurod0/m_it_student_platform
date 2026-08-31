@@ -1,16 +1,31 @@
+import 'package:json_annotation/json_annotation.dart';
+
+part 'ai_mentor_model.g.dart';
+
 enum AiQueryCategory {
+  @JsonValue('flutter')
   flutter,
+  @JsonValue('dart')
   dart,
+  @JsonValue('python')
   python,
+  @JsonValue('web')
   web,
+  @JsonValue('backend')
   backend,
+  @JsonValue('git')
   git,
+  @JsonValue('database')
   database,
+  @JsonValue('debugging')
   debugging,
+  @JsonValue('academy')
   academy,
+  @JsonValue('general')
   general,
 }
 
+@JsonSerializable()
 class AiMentorMessage {
   const AiMentorMessage({
     required this.id,
@@ -31,12 +46,19 @@ class AiMentorMessage {
   final String text;
   final String time;
   final bool isUser;
+  @JsonKey(defaultValue: true)
   final bool isAi;
+  @JsonKey(unknownEnumValue: AiQueryCategory.general, defaultValue: AiQueryCategory.general)
   final AiQueryCategory category;
   final String? codeSnippet;
   final String? codeLanguage;
+  @JsonKey(defaultValue: [])
   final List<String> followUpPrompts;
   final bool? helpfulVote;
+
+  factory AiMentorMessage.fromJson(Map<String, dynamic> json) => _$AiMentorMessageFromJson(json);
+
+  Map<String, dynamic> toJson() => _$AiMentorMessageToJson(this);
 
   AiMentorMessage copyWith({
     String? id,

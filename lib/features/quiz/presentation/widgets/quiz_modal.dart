@@ -2,8 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/utils/haptics.dart';
-import 'package:m_it_student_platform/features/quiz/data/repositories/quiz_repository.dart';
-import 'package:m_it_student_platform/features/quiz/domain/models/quiz_model.dart';
+import 'package:m_it_student_platform/core/di/injection_container.dart';
+import 'package:m_it_student_platform/features/quiz/domain/entities/quiz.dart';
+import 'package:m_it_student_platform/features/quiz/domain/repositories/quiz_repository.dart';
 
 class QuizModal extends StatefulWidget {
   const QuizModal({super.key});
@@ -24,7 +25,8 @@ class QuizModal extends StatefulWidget {
 class _QuizModalState extends State<QuizModal> {
   QuizCategory _selectedCategory = QuizCategory.flutter;
   QuizDifficulty? _selectedDifficulty;
-  late List<QuizQuestion> _questions;
+  List<QuizQuestion> _questions = [];
+  bool _isLoading = true;
   int _currentIndex = 0;
   int? _selectedOptionIndex;
   bool _answered = false;
@@ -48,30 +50,59 @@ class _QuizModalState extends State<QuizModal> {
     super.dispose();
   }
 
-  void _loadQuestions() {
-    _questions = QuizRepository.getQuestionsByDifficulty(_selectedCategory, _selectedDifficulty);
-    if (_questions.isEmpty) {
-      _questions = QuizRepository.getQuestionsByCategory(_selectedCategory);
+  Future<void> _loadQuestions() async {
+    setState(() => _isLoading = true);
+    final repo = sl<QuizRepository>();
+    final result = await repo.getQuizQuestions();
+
+    if (!mounted) return;
+
+    final all = result.dataOrNull;
+    if (all != null) {
+      _questions = all.where((q) => q.category == _selectedCategory).toList();
+      if (_selectedDifficulty != null) {
+        final withDiff = _questions.where((q) => q.difficulty == _selectedDifficulty).toList();
+        if (withDiff.isNotEmpty) {
+          _questions = withDiff;
+        }
+      }
+    } else {
+      _questions = [];
     }
-    _currentIndex = 0;
-    _selectedOptionIndex = null;
-    _answered = false;
-    _score = 0;
-    _earnedXp = 0;
-    _streak = 0;
-    _maxStreak = 0;
-    _isFinished = false;
-    _startTimer();
+
+    setState(() {
+      _isLoading = false;
+      _currentIndex = 0;
+      _selectedOptionIndex = null;
+      _answered = false;
+      _score = 0;
+      _earnedXp = 0;
+      _streak = 0;
+      _maxStreak = 0;
+      _isFinished = false;
+    });
+    if (_questions.isNotEmpty) {
+      _startTimer();
+    }
   }
+
+  DateTime? _targetEndTime;
 
   void _startTimer() {
     _timer?.cancel();
     _timerSeconds = 20;
-    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+    _targetEndTime = DateTime.now().add(const Duration(seconds: 20));
+    _timer = Timer.periodic(const Duration(milliseconds: 250), (t) {
       if (!mounted) return;
-      if (_timerSeconds > 0 && !_answered) {
-        setState(() => _timerSeconds--);
-      } else if (_timerSeconds == 0 && !_answered) {
+      if (_targetEndTime == null || _answered) return;
+
+      final remaining = _targetEndTime!.difference(DateTime.now()).inSeconds;
+      if (remaining > 0) {
+        if (_timerSeconds != remaining) {
+          setState(() => _timerSeconds = remaining);
+        }
+      } else {
+        setState(() => _timerSeconds = 0);
         _onSelectOption(-1); // Timeout
       }
     });
@@ -203,7 +234,7 @@ class _QuizModalState extends State<QuizModal> {
           const SizedBox(height: 10),
 
           // Categories Horizontal Scroll Tabs
-          if (!_isFinished) ...[
+          if (!_isFinished && !_isLoading) ...[
             SizedBox(
               height: 38,
               child: ListView(
@@ -211,7 +242,7 @@ class _QuizModalState extends State<QuizModal> {
                 padding: const EdgeInsets.symmetric(horizontal: 18),
                 children: QuizCategory.values.map((cat) {
                   final active = _selectedCategory == cat;
-                  final count = QuizRepository.getQuestionsByCategory(cat).length;
+                  // We don't have count anymore from MockQuizRepository, just show 0 or remove it
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: GestureDetector(
@@ -251,24 +282,6 @@ class _QuizModalState extends State<QuizModal> {
                                 color: active ? Colors.white : theme.colorScheme.onSurface,
                               ),
                             ),
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                              decoration: BoxDecoration(
-                                color: active
-                                    ? Colors.white.withValues(alpha: 0.25)
-                                    : (isDark ? Colors.black26 : Colors.black12),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                '$count',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: active ? Colors.white : (isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary),
-                                ),
-                              ),
-                            ),
                           ],
                         ),
                       ),
@@ -290,7 +303,12 @@ class _QuizModalState extends State<QuizModal> {
   }
 
   Widget _buildQuizView(ThemeData theme, bool isDark) {
-    if (_questions.isEmpty) return const SizedBox();
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_questions.isEmpty) {
+      return const Center(child: Text('Ushbu kategoriyada savollar topilmadi'));
+    }
     final q = _questions[_currentIndex];
 
     return ListView(

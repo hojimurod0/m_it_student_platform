@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
+import 'package:m_it_student_platform/core/utils/haptics.dart';
+import 'package:m_it_student_platform/core/widgets/ui/mit_toast.dart';
 import 'package:m_it_student_platform/features/home/data/services/ai_mentor_service.dart';
 import 'package:m_it_student_platform/features/home/domain/models/ai_mentor_model.dart';
 import 'package:m_it_student_platform/features/profile/data/repositories/mock_profile_repository.dart';
@@ -23,55 +25,21 @@ class MentorChatModal extends StatefulWidget {
   State<MentorChatModal> createState() => _MentorChatModalState();
 }
 
-class _MentorChatModalState extends State<MentorChatModal>
-    with SingleTickerProviderStateMixin {
+class _MentorChatModalState extends State<MentorChatModal> {
   final TextEditingController _msgController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
   bool _isTyping = false;
-  bool _isAiMode = true;
-  int _selectedPromptCategory = 0;
-
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-
   late final List<AiMentorMessage> _messages;
 
-  final Map<int, List<String>> _promptCategories = {
-    0: [
-      'BLoC va Provider farqi nima?',
-      'Clean Architecture qanday tuziladi?',
-      'RenderFlex overflow xatosi',
-      'Dart Null Safety qoidalari',
-      'Bugungi dars jadvalim qanday?',
-      'Python da ikkilik qidiruv',
-    ],
-    1: [
-      'BLoC va Provider farqi nima?',
-      'StatelessWidget va StatefulWidget farqi',
-      'Future va Stream farqi nima?',
-      'Dart Sound Null Safety nima?',
-      'Clean Architecture qatlamlari',
-    ],
-    2: [
-      'RenderFlex overflow xatosini tuzatish',
-      'Null check operator used on null',
-      'LateInitializationError xatosi',
-      'SocketException qanday ushlanadi?',
-    ],
-    3: [
-      'Bugungi dars jadvalim qanday?',
-      'Oylik to\'lov va qoldiq summa qancha?',
-      '204-kompyuter xonasi qayerda?',
-      'Uy vazifasini qanday topshiraman?',
-    ],
-    4: [
-      'Python da Binary Search kodi',
-      'REST API va SQL farqi',
-      'HTML va CSS asoslari',
-      'Git commit va push buyruqlari',
-    ],
-  };
+  final List<String> _quickPrompts = const [
+    '❓ Uy vazifasini qanday topshiraman?',
+    '📅 Bugungi dars vaqti va xonam qayerda?',
+    '💡 BLoC va Provider farqi nima?',
+    '🐞 Kodimdagi xatoni topishga yordam ber',
+    '💳 To\'lovim qancha qolgan?',
+    '🚀 Flutterda vidjetlar bilan ishlash',
+  ];
 
   @override
   void initState() {
@@ -80,36 +48,25 @@ class _MentorChatModalState extends State<MentorChatModal>
     _messages = [
       AiMentorMessage(
         id: 'msg_welcome',
-        senderName: 'Abbos Qodirov (AI Mentor)',
-        text: 'Assalomu alaykum $studentName! 👋 Men sizning 24/7 ishlaydigan **AI Mentor**ingizman.\n\n'
-            'Flutter, Dart, Python, kod xatoliklari yoki o\'quv markaz darslari bo\'yicha istalgan savolingizni berishingiz mumkin!',
+        senderName: 'Abbos Qodirov (Mentor)',
+        text: 'Assalomu alaykum $studentName! 👋\n\n'
+            'Men sizning M-IT yordamchi mentoringizman. Darslar, uy vazifalari yoki dasturlash kodlari bo\'yicha istalgan savolingizni berishingiz mumkin!',
         time: 'Hozir',
         isUser: false,
         isAi: true,
         category: AiQueryCategory.general,
         followUpPrompts: const [
-          'BLoC va Provider farqi nima?',
-          'RenderFlex overflow xatosini tuzatish',
-          'Bugungi dars jadvali va xonam',
+          '❓ Uy vazifasini qanday topshiraman?',
+          '📅 Bugungi dars jadvalim qanday?',
         ],
       ),
     ];
-
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    )..forward();
-
-    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeOutBack),
-    );
   }
 
   @override
   void dispose() {
     _msgController.dispose();
     _scrollController.dispose();
-    _pulseController.dispose();
     super.dispose();
   }
 
@@ -117,6 +74,7 @@ class _MentorChatModalState extends State<MentorChatModal>
     final clean = text.trim();
     if (clean.isEmpty) return;
 
+    AppHaptics.light();
     final now = DateTime.now();
     final timeStr =
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
@@ -139,32 +97,23 @@ class _MentorChatModalState extends State<MentorChatModal>
 
     _scrollToBottom();
 
-    // AI reasoning delay simulation (realistic streaming/thinking pace)
-    final delayMs = _isAiMode ? 850 : 1800;
-    Timer(Duration(milliseconds: delayMs), () {
+    // Mentor thinking and reply
+    Timer(const Duration(milliseconds: 750), () {
       if (!mounted) return;
 
       final rNow = DateTime.now();
       final rTime =
           '${rNow.hour.toString().padLeft(2, '0')}:${rNow.minute.toString().padLeft(2, '0')}';
 
-      final AiMentorResponse aiReply;
-      if (_isAiMode) {
-        aiReply = AiMentorService.generateAnswer(clean);
-      } else {
-        aiReply = AiMentorResponse(
-          text: 'Assalomu alaykum ${student.firstName}! Savolingiz ustoz Abbos Qodirovga yetkazildi. Mentor tez orada siz bilan shaxsan bog\'lanadi.',
-          category: AiQueryCategory.academy,
-        );
-      }
+      final aiReply = AiMentorService.generateAnswer(clean);
 
       final mentorMsg = AiMentorMessage(
         id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
-        senderName: _isAiMode ? 'Abbos Qodirov (AI Mentor)' : 'Abbos Qodirov (Jonli Mentor)',
+        senderName: 'Abbos Qodirov (Mentor)',
         text: aiReply.text,
         time: rTime,
         isUser: false,
-        isAi: _isAiMode,
+        isAi: true,
         category: aiReply.category,
         codeSnippet: aiReply.codeSnippet,
         codeLanguage: aiReply.codeLanguage,
@@ -184,7 +133,7 @@ class _MentorChatModalState extends State<MentorChatModal>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent + 120,
+          _scrollController.position.maxScrollExtent + 140,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOutCubic,
         );
@@ -194,16 +143,12 @@ class _MentorChatModalState extends State<MentorChatModal>
 
   void _copyToClipboard(String code) {
     Clipboard.setData(ClipboardData(text: code));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(context.tr('codeCopied')),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    AppHaptics.light();
+    MitToast.success(context, context.tr('codeCopied'));
   }
 
   void _clearChat() {
+    AppHaptics.selection();
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -221,16 +166,16 @@ class _MentorChatModalState extends State<MentorChatModal>
               setState(() {
                 _messages.clear();
                 _messages.add(
-                  const AiMentorMessage(
+                  AiMentorMessage(
                     id: 'msg_welcome',
-                    senderName: 'Abbos Qodirov (AI Mentor)',
-                    text: 'Chat tozalandi. Qanday yangi savolingiz bor? 🚀',
+                    senderName: 'Abbos Qodirov (Mentor)',
+                    text: context.tr('chatCleaned'),
                     time: 'Hozir',
                     isUser: false,
                     isAi: true,
-                    followUpPrompts: [
-                      'BLoC va Provider farqi nima?',
-                      'RenderFlex overflow xatosini tuzatish',
+                    followUpPrompts: const [
+                      '❓ Uy vazifasini qanday topshiraman?',
+                      '📅 Bugungi dars jadvalim qanday?',
                     ],
                   ),
                 );
@@ -248,166 +193,136 @@ class _MentorChatModalState extends State<MentorChatModal>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final categoryTabs = [
-      context.tr('filterAllPrompts'),
-      context.tr('filterFlutterPrompts'),
-      context.tr('filterDebuggingPrompts'),
-      context.tr('filterAcademyPrompts'),
-      context.tr('filterWebPrompts'),
-    ];
-
-    final currentPrompts = _promptCategories[_selectedPromptCategory] ?? _promptCategories[0]!;
-
     return Container(
       height: MediaQuery.of(context).size.height * 0.90,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      padding: EdgeInsets.only(
-        top: 12,
-        bottom: MediaQuery.of(context).viewInsets.bottom +
-            MediaQuery.of(context).padding.bottom +
-            10,
-      ),
       child: Column(
         children: [
           // Drag handle
           Container(
-            width: 42,
-            height: 5,
+            margin: const EdgeInsets.only(top: 12, bottom: 8),
+            width: 44,
+            height: 4.5,
             decoration: BoxDecoration(
-              color: theme.colorScheme.outline,
+              color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
               borderRadius: BorderRadius.circular(10),
             ),
           ),
-          const SizedBox(height: 10),
 
-          // Header: AI Mentor Profile & Status
+          // Header
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.fromLTRB(16, 4, 12, 10),
             child: Row(
               children: [
-                ScaleTransition(
-                  scale: _pulseAnimation,
-                  child: Stack(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
+                // Mentor Avatar with Online Indicator
+                Stack(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                        border: Border.all(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.4),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          '👨‍🏫',
+                          style: TextStyle(fontSize: 22),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 1,
+                      bottom: 1,
+                      child: Container(
+                        width: 11,
+                        height: 11,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF6366F1), Color(0xFF10B981)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF10B981).withValues(alpha: 0.35),
-                              blurRadius: 10,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: const Center(
-                          child: Text(
-                            '👨‍💻',
-                            style: TextStyle(fontSize: 22),
+                          color: const Color(0xFF10B981),
+                          border: Border.all(
+                            color: theme.colorScheme.surface,
+                            width: 2,
                           ),
                         ),
                       ),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.success,
-                            border: Border.all(color: theme.colorScheme.surface, width: 2),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
                 const SizedBox(width: 12),
 
-                // Name & Mode
+                // Name & Status
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Row(
                         children: [
                           Flexible(
                             child: Text(
-                              context.tr('aiMentorTitle'),
+                              'Abbos Qodirov',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800),
+                              style: TextStyle(
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w800,
+                                color: theme.colorScheme.onSurface,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF6366F1).withValues(alpha: isDark ? 0.35 : 0.15),
+                              color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.25 : 0.12),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: Text(
-                              context.tr('aiMentorBadge'),
-                              style: const TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF6366F1),
+                            child: const Text(
+                              'Mentor',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF10B981),
                               ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        _isAiMode
-                            ? context.tr('aiMentorSubtitle')
-                            : context.tr('aiModeLiveMentor'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: _isAiMode ? AppColors.success : AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF10B981),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            context.tr('onlineSupport247'),
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
 
-                // Mode Toggle Button
-                IconButton(
-                  tooltip: _isAiMode ? context.tr('tooltipAiMode') : context.tr('tooltipLiveMentor'),
-                  icon: Icon(
-                    _isAiMode ? Icons.auto_awesome_rounded : Icons.person_rounded,
-                    color: _isAiMode ? const Color(0xFF6366F1) : AppColors.primary,
-                    size: 20,
-                  ),
-                  onPressed: () {
-                    setState(() => _isAiMode = !_isAiMode);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          _isAiMode
-                              ? context.tr('aiModeActive')
-                              : context.tr('aiModeLiveMentor'),
-                        ),
-                        duration: const Duration(seconds: 1),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
-                ),
-
-                // Clear Chat Action
+                // Clear Chat
                 IconButton(
                   tooltip: context.tr('clearChat'),
                   icon: const Icon(Icons.delete_outline_rounded, size: 20),
@@ -423,13 +338,14 @@ class _MentorChatModalState extends State<MentorChatModal>
               ],
             ),
           ),
-          const Divider(height: 14),
+          const Divider(height: 1),
 
           // Messages List
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              physics: const BouncingScrollPhysics(),
               itemCount: _messages.length,
               itemBuilder: (context, index) {
                 final msg = _messages[index];
@@ -441,96 +357,59 @@ class _MentorChatModalState extends State<MentorChatModal>
           // Typing Indicator
           if (_isTyping)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
               child: Row(
                 children: [
                   const SizedBox(
                     width: 14,
                     height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6366F1)),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFF10B981),
+                    ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Text(
-                    context.tr('aiTyping'),
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      fontStyle: FontStyle.italic,
-                      color: Color(0xFF6366F1),
+                    context.tr('mentorTyping'),
+                    style: TextStyle(
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
+                      color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
                     ),
                   ),
                 ],
               ),
             ),
 
-          // Quick Prompt Categories Bar
-          Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 4),
-            child: SizedBox(
-              height: 28,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                itemCount: categoryTabs.length,
-                separatorBuilder: (_, i) => const SizedBox(width: 6),
-                itemBuilder: (context, i) {
-                  final active = _selectedPromptCategory == i;
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedPromptCategory = i),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: active
-                            ? (isDark ? const Color(0xFF6366F1).withValues(alpha: 0.35) : const Color(0xFF6366F1))
-                            : (isDark ? AppColors.darkSurfaceSecondary : AppColors.surfaceSecondary),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: active ? const Color(0xFF6366F1) : theme.colorScheme.outline,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          categoryTabs[i],
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                            color: active ? Colors.white : theme.colorScheme.onSurface,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-
-          // Quick Prompt Suggestions Chips Carousel
-          SizedBox(
-            height: 36,
+          // Quick Suggestion Chips (Tezkor Savollar)
+          Container(
+            height: 38,
+            margin: const EdgeInsets.symmetric(vertical: 4),
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-              itemCount: currentPrompts.length,
-              separatorBuilder: (_, i) => const SizedBox(width: 6),
-              itemBuilder: (context, i) {
-                final prompt = currentPrompts[i];
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: _quickPrompts.length,
+              separatorBuilder: (_, index) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final prompt = _quickPrompts[index];
                 return GestureDetector(
                   onTap: () => _sendMessage(prompt),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkSurfaceSecondary : AppColors.surfaceSecondary,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: theme.colorScheme.outline),
+                      color: isDark ? AppColors.darkSurfaceSecondary : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      ),
                     ),
                     child: Center(
                       child: Text(
                         prompt,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onSurface,
+                          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
                         ),
                       ),
                     ),
@@ -539,19 +418,27 @@ class _MentorChatModalState extends State<MentorChatModal>
               },
             ),
           ),
-          const SizedBox(height: 6),
 
           // Bottom Input Bar
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 6,
+              bottom: MediaQuery.of(context).viewInsets.bottom +
+                  MediaQuery.of(context).padding.bottom +
+                  12,
+            ),
             child: Row(
               children: [
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkSurfaceSecondary : AppColors.surfaceSecondary,
+                      color: isDark ? AppColors.darkSurfaceSecondary : const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: theme.colorScheme.outline),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      ),
                     ),
                     child: TextField(
                       controller: _msgController,
@@ -560,38 +447,35 @@ class _MentorChatModalState extends State<MentorChatModal>
                       textInputAction: TextInputAction.send,
                       onSubmitted: _sendMessage,
                       decoration: InputDecoration(
-                        hintText: context.tr('askAiHint'),
+                        hintText: 'Mentordan savol so\'rang...',
                         hintStyle: TextStyle(
-                          fontSize: 12.5,
-                          color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+                          fontSize: 13,
+                          color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                         ),
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-                        suffixIcon: _msgController.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear_rounded, size: 18),
-                                onPressed: () {
-                                  _msgController.clear();
-                                  setState(() {});
-                                },
-                              )
-                            : null,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
                       onChanged: (_) => setState(() {}),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF6366F1), Color(0xFF10B981)],
+                GestureDetector(
+                  onTap: () => _sendMessage(_msgController.text),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _msgController.text.trim().isNotEmpty
+                          ? AppColors.primary
+                          : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                     ),
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
-                    onPressed: () => _sendMessage(_msgController.text),
+                    child: const Icon(
+                      Icons.send_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                 ),
               ],
@@ -604,43 +488,40 @@ class _MentorChatModalState extends State<MentorChatModal>
 
   Widget _buildMessageTile(AiMentorMessage msg, bool isDark, ThemeData theme) {
     if (msg.isUser) {
+      // User message bubble (Right side)
       return Align(
         alignment: Alignment.centerRight,
         child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
+          margin: const EdgeInsets.only(bottom: 10),
+          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.80),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF4F46E5), Color(0xFF059669)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: AppColors.primary,
             borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(18),
-              topRight: Radius.circular(18),
-              bottomLeft: Radius.circular(18),
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+              bottomLeft: Radius.circular(16),
               bottomRight: Radius.circular(4),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF059669).withValues(alpha: 0.25),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 msg.text,
-                style: const TextStyle(fontSize: 13, height: 1.4, color: Colors.white),
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  height: 1.35,
+                  color: Colors.white,
+                ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               Text(
                 msg.time,
-                style: const TextStyle(fontSize: 9.5, color: Colors.white70),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
               ),
             ],
           ),
@@ -648,27 +529,29 @@ class _MentorChatModalState extends State<MentorChatModal>
       );
     }
 
-    // AI Message Tile
+    // Mentor message bubble (Left side)
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.88),
+        margin: const EdgeInsets.only(bottom: 12),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.86),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurfaceSecondary : AppColors.surfaceSecondary,
+          color: isDark ? AppColors.darkSurfaceSecondary : Colors.white,
           borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(18),
-            topRight: Radius.circular(18),
+            topLeft: Radius.circular(16),
+            topRight: Radius.circular(16),
             bottomLeft: Radius.circular(4),
-            bottomRight: Radius.circular(18),
+            bottomRight: Radius.circular(16),
           ),
           border: Border.all(
             color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+              color: isDark
+                  ? Colors.black.withValues(alpha: 0.2)
+                  : const Color(0xFF64748B).withValues(alpha: 0.04),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -677,54 +560,46 @@ class _MentorChatModalState extends State<MentorChatModal>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Sender Badge & Time
+            // Sender & Time
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF6366F1).withValues(alpha: isDark ? 0.3 : 0.12),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.auto_awesome, size: 10, color: Color(0xFF6366F1)),
-                      const SizedBox(width: 4),
-                      Text(
-                        context.tr('aiGeneratedTag'),
-                        style: const TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF6366F1),
-                        ),
-                      ),
-                    ],
+                const Icon(
+                  Icons.support_agent_rounded,
+                  size: 16,
+                  color: Color(0xFF10B981),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  msg.senderName,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF10B981),
                   ),
                 ),
                 const Spacer(),
                 Text(
                   msg.time,
                   style: TextStyle(
-                    fontSize: 9.5,
-                    color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+                    fontSize: 10,
+                    color: isDark ? const Color(0xFF94A3B8) : AppColors.textMuted,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
 
-            // Formatted Message Text
+            // Message text
             Text(
               msg.text,
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: 13,
                 height: 1.45,
                 color: theme.colorScheme.onSurface,
               ),
             ),
 
-            // Optional Code Snippet Block with Copy Button
+            // Code Snippet Block (if any)
             if (msg.codeSnippet != null && msg.codeSnippet!.isNotEmpty) ...[
               const SizedBox(height: 10),
               Container(
@@ -737,7 +612,6 @@ class _MentorChatModalState extends State<MentorChatModal>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Code header
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: const BoxDecoration(
@@ -746,32 +620,25 @@ class _MentorChatModalState extends State<MentorChatModal>
                       ),
                       child: Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF10B981).withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              msg.codeLanguage?.toUpperCase() ?? 'CODE',
-                              style: const TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF10B981),
-                              ),
+                          Text(
+                            msg.codeLanguage?.toUpperCase() ?? 'KOD NAMUNASI',
+                            style: const TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF10B981),
                             ),
                           ),
                           const Spacer(),
                           GestureDetector(
                             onTap: () => _copyToClipboard(msg.codeSnippet!),
-                            child: Row(
+                            child: const Row(
                               children: [
-                                const Icon(Icons.copy_rounded, size: 12, color: Color(0xFF94A3B8)),
-                                const SizedBox(width: 4),
+                                Icon(Icons.copy_rounded, size: 12, color: Color(0xFF94A3B8)),
+                                SizedBox(width: 4),
                                 Text(
-                                  context.tr('copyCode'),
-                                  style: const TextStyle(
-                                    fontSize: 10,
+                                  'Nusxa olish',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
                                     fontWeight: FontWeight.w600,
                                     color: Color(0xFF94A3B8),
                                   ),
@@ -782,8 +649,6 @@ class _MentorChatModalState extends State<MentorChatModal>
                         ],
                       ),
                     ),
-
-                    // Code content
                     Padding(
                       padding: const EdgeInsets.all(12),
                       child: SelectableText(
@@ -801,7 +666,7 @@ class _MentorChatModalState extends State<MentorChatModal>
               ),
             ],
 
-            // Interactive Dynamic Follow-up Prompts
+            // Follow-up prompts
             if (msg.followUpPrompts.isNotEmpty) ...[
               const SizedBox(height: 10),
               Wrap(
@@ -811,32 +676,25 @@ class _MentorChatModalState extends State<MentorChatModal>
                   return GestureDetector(
                     onTap: () => _sendMessage(prompt),
                     child: Container(
-                      constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width * 0.74,
-                      ),
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withValues(alpha: isDark ? 0.2 : 0.08),
-                        borderRadius: BorderRadius.circular(8),
+                        color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.2 : 0.08),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                          color: const Color(0xFF10B981).withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.arrow_forward_rounded, size: 10, color: Color(0xFF6366F1)),
+                          const Icon(Icons.arrow_forward_rounded, size: 11, color: Color(0xFF10B981)),
                           const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              prompt,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF6366F1),
-                              ),
+                          Text(
+                            prompt,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF10B981),
                             ),
                           ),
                         ],

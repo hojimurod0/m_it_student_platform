@@ -4,7 +4,7 @@ import 'package:m_it_student_platform/core/constants/app_colors.dart';
 class StudentAvatar extends StatelessWidget {
   const StudentAvatar({
     super.key,
-    this.avatarEmoji = '👨‍💻',
+    this.avatarEmoji = '',
     this.initials = 'ST',
     this.gender = 'male',
     this.imageUrl = '',
@@ -34,6 +34,12 @@ class StudentAvatar extends StatelessWidget {
   final Gradient? ringGradient;
   final bool hasRing;
   final bool hasGlow;
+
+  bool get isFemale =>
+      gender.toLowerCase() == 'female' ||
+      gender.toLowerCase() == 'ayol' ||
+      avatarEmoji == '🧕' ||
+      avatarEmoji == '👩‍💻';
 
   @override
   Widget build(BuildContext context) {
@@ -111,10 +117,10 @@ class StudentAvatar extends StatelessWidget {
                   width: 0.8,
                 ),
               ),
-              child: Center(
-                child: imageUrl.isNotEmpty
-                    ? ClipOval(
-                        child: Image.network(
+              child: ClipOval(
+                child: Center(
+                  child: imageUrl.isNotEmpty
+                      ? Image.network(
                           imageUrl,
                           width: size,
                           height: size,
@@ -122,10 +128,10 @@ class StudentAvatar extends StatelessWidget {
                           cacheHeight: (size * 2).toInt(),
                           filterQuality: FilterQuality.medium,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => _buildFallbackContent(),
-                        ),
-                      )
-                    : _buildFallbackContent(),
+                          errorBuilder: (_, _, _) => _buildSilhouette(context),
+                        )
+                      : _buildSilhouette(context),
+                ),
               ),
             ),
           ),
@@ -170,23 +176,47 @@ class StudentAvatar extends StatelessWidget {
     );
   }
 
-  Widget _buildFallbackContent() {
-    if (avatarEmoji.isNotEmpty) {
-      return Text(
-        avatarEmoji,
-        style: TextStyle(
-          fontSize: size * 0.44,
-          height: 1.0,
-        ),
-      );
-    }
-    return Text(
-      initials,
-      style: TextStyle(
-        fontSize: size * 0.36,
-        fontWeight: FontWeight.w800,
-        letterSpacing: -0.5,
+  Widget _buildSilhouette(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final iconColor = isDark
+        ? Colors.white
+        : const Color(0xFF00213D);
+
+    return GenderAvatarWidget(
+      isFemale: isFemale,
+      size: size,
+      color: iconColor,
+    );
+  }
+}
+
+/// Standalone widget for displaying male or female avatar icon
+class GenderAvatarWidget extends StatelessWidget {
+  const GenderAvatarWidget({
+    super.key,
+    required this.isFemale,
+    this.size = 48,
+    this.color,
+  });
+
+  final bool isFemale;
+  final double size;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveColor = color ??
+        (isDark ? Colors.white : const Color(0xFF00213D));
+
+    return Center(
+      child: Icon(
+        isFemale ? Icons.face_3_rounded : Icons.person_rounded,
+        size: size * 0.65,
+        color: effectiveColor,
       ),
     );
   }
 }
+
+

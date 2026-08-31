@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
-import 'package:m_it_student_platform/features/payments/domain/models/payment_model.dart';
+import 'package:m_it_student_platform/core/widgets/ui/mit_toast.dart';
+import 'package:m_it_student_platform/features/payments/domain/entities/payment.dart';
 
 class ReceiptModal extends StatelessWidget {
   const ReceiptModal({
@@ -177,8 +178,9 @@ class ReceiptModal extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: () {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('To\'lov kvitansiyasi (${transaction.transactionNumber}.pdf) yuklab olindi.')),
+                    MitToast.success(
+                      context,
+                      '${context.tr('receiptDownloaded')} (${transaction.transactionNumber}.pdf)',
                     );
                   },
                   icon: const Icon(Icons.download_rounded, size: 17),
@@ -193,9 +195,7 @@ class ReceiptModal extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: () {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Chek havolasi nusxalandi!')),
-                    );
+                    MitToast.info(context, context.tr('receiptLinkCopied'));
                   },
                   icon: const Icon(Icons.share_rounded, size: 17),
                   label: Text(context.tr('shareReceipt')),

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
-import 'package:m_it_student_platform/features/profile/data/repositories/mock_profile_repository.dart';
+import 'package:m_it_student_platform/core/utils/haptics.dart';
+import 'package:m_it_student_platform/core/widgets/student_avatar.dart';
+import 'package:m_it_student_platform/core/widgets/ui/mit_toast.dart';
+import 'package:m_it_student_platform/features/profile/data/repositories/profile_repository_impl.dart';
 import 'package:m_it_student_platform/features/profile/domain/models/student_model.dart';
 
 class EditProfileModal extends StatefulWidget {
@@ -26,19 +29,20 @@ class _EditProfileModalState extends State<EditProfileModal> {
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
   late final TextEditingController _parentPhoneController;
-  late final TextEditingController _emailController;
+  late final ProfileRepositoryImpl _profileRepo;
   late String _selectedGender;
   late int _selectedAvatarIndex;
-
-  static const List<String> _availableAvatars = ['👦🏻', '👨‍💻', '🧕', '👩‍💻'];
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
+    _profileRepo = ProfileRepositoryImpl();
     _nameController = TextEditingController(text: widget.student.fullName);
     _phoneController = TextEditingController(text: widget.student.phone);
-    _parentPhoneController = TextEditingController(text: widget.student.parentPhone);
-    _emailController = TextEditingController(text: widget.student.email);
+    _parentPhoneController = TextEditingController(
+      text: widget.student.parentPhone,
+    );
     _selectedGender = widget.student.gender;
     _selectedAvatarIndex = widget.student.avatarIndex;
   }
@@ -48,36 +52,40 @@ class _EditProfileModalState extends State<EditProfileModal> {
     _nameController.dispose();
     _phoneController.dispose();
     _parentPhoneController.dispose();
-    _emailController.dispose();
     super.dispose();
   }
 
-  void _save() {
+  bool get _isFemaleSelected =>
+      _selectedGender.toLowerCase() == 'female' ||
+      _selectedGender.toLowerCase() == 'ayol' ||
+      _selectedAvatarIndex == 1;
+
+  Future<void> _save() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('nameRequired'))),
-      );
+      MitToast.warning(context, context.tr('nameRequired'));
       return;
     }
 
-    MockProfileRepository.updateProfile(
-      fullName: name,
-      phone: _phoneController.text.trim(),
-      parentPhone: _parentPhoneController.text.trim(),
-      email: _emailController.text.trim(),
-      gender: _selectedGender,
-      avatarIndex: _selectedAvatarIndex,
-    );
+    setState(() => _isLoading = true);
 
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(context.tr('profileUpdated')),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    try {
+      await _profileRepo.updateProfile(
+        fullName: name,
+        phone: _phoneController.text.trim(),
+        parentPhone: _parentPhoneController.text.trim(),
+        gender: _selectedGender,
+        avatarIndex: _selectedAvatarIndex,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context);
+      MitToast.success(context, context.tr('profileUpdated'));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      MitToast.error(context, e.toString().replaceAll('Exception:', '').trim());
+    }
   }
 
   @override
@@ -86,314 +94,267 @@ class _EditProfileModalState extends State<EditProfileModal> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.88,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.only(
         left: 20,
         right: 20,
-        top: 14,
-        bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom + 20,
+        top: 12,
+        bottom: MediaQuery.of(context).viewInsets.bottom +
+            MediaQuery.of(context).padding.bottom +
+            16,
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Drag handle
           Center(
             child: Container(
-              width: 44,
-              height: 5,
+              width: 36,
+              height: 4,
               decoration: BoxDecoration(
-                color: theme.colorScheme.outline,
+                color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
           // Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    context.tr('editProfile'),
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    context.tr('editProfileSub'),
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+              Text(
+                context.tr('editProfile'),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? Colors.white : Colors.black,
+                ),
               ),
               IconButton(
-                icon: const Icon(Icons.close_rounded),
+                icon: Icon(
+                  Icons.close_rounded,
+                  size: 22,
+                  color: isDark ? Colors.white : Colors.black,
+                ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
                 onPressed: () => Navigator.pop(context),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
-          Expanded(
+          Flexible(
             child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Avatar tanlash (barcha 4 ta avatar to'g'ridan-to'g'ri)
+                  // ── 1. Avatar tanlash (Sodda va Ixcham) ──
                   Text(
-                    context.tr('chooseAvatar'),
+                    context.tr('avatarGender'),
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : Colors.black,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
+
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      for (int index = 0; index < _availableAvatars.length; index++) ...[
-                        GestureDetector(
+                      // Erkak
+                      Expanded(
+                        child: _CompactAvatarButton(
+                          isFemale: false,
+                          label: context.tr('genderMale'),
+                          isSelected: !_isFemaleSelected,
                           onTap: () {
                             setState(() {
-                              _selectedAvatarIndex = index;
-                              _selectedGender = index >= 2 ? 'female' : 'male';
+                              _selectedGender = 'male';
+                              _selectedAvatarIndex = 0;
                             });
                           },
-                          child: Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _selectedAvatarIndex == index
-                                  ? (index >= 2
-                                      ? const Color(0xFFEC4899).withValues(alpha: isDark ? 0.25 : 0.15)
-                                      : (isDark ? AppColors.primary.withValues(alpha: 0.25) : AppColors.primarySurface))
-                                  : (isDark ? AppColors.darkSurfaceSecondary : AppColors.surfaceSecondary),
-                              border: Border.all(
-                                color: _selectedAvatarIndex == index
-                                    ? (index >= 2
-                                        ? const Color(0xFFEC4899)
-                                        : (isDark ? AppColors.primaryAccent : AppColors.primary))
-                                    : theme.colorScheme.outline,
-                                width: _selectedAvatarIndex == index ? 3 : 1.5,
-                              ),
-                              boxShadow: _selectedAvatarIndex == index
-                                  ? [
-                                      BoxShadow(
-                                        color: (index >= 2
-                                                ? const Color(0xFFEC4899)
-                                                : AppColors.primary)
-                                            .withValues(alpha: 0.35),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ]
-                                  : null,
-                            ),
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                Center(
-                                  child: Text(
-                                    _availableAvatars[index],
-                                    style: const TextStyle(fontSize: 30),
-                                  ),
-                                ),
-                                if (_selectedAvatarIndex == index)
-                                  Positioned(
-                                    right: 1,
-                                    bottom: 1,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(2),
-                                      decoration: BoxDecoration(
-                                        color: index >= 2
-                                            ? const Color(0xFFEC4899)
-                                            : AppColors.primary,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(
-                                        Icons.check,
-                                        size: 10,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
                         ),
-                      ],
+                      ),
+                      const SizedBox(width: 10),
+
+                      // Ayol
+                      Expanded(
+                        child: _CompactAvatarButton(
+                          isFemale: true,
+                          label: context.tr('genderFemale'),
+                          isSelected: _isFemaleSelected,
+                          onTap: () {
+                            setState(() {
+                              _selectedGender = 'female';
+                              _selectedAvatarIndex = 1;
+                            });
+                          },
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
-                  // Editable Information Section Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          context.tr('editableInfo'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
+                  // ── 2. Ism-familiya ──
+                  TextField(
+                    controller: _nameController,
+                    textCapitalization: TextCapitalization.words,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: context.tr('fullName'),
+                      labelStyle: TextStyle(
+                        color: isDark ? const Color(0xFFCBD5E1) : Colors.black87,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppColors.success.withValues(alpha: isDark ? 0.25 : 0.12),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          context.tr('editableBadge'),
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.success,
-                          ),
-                        ),
+                      prefixIcon: Icon(
+                        Icons.person_outline_rounded,
+                        size: 20,
+                        color: isDark ? Colors.white70 : Colors.black87,
                       ),
-                    ],
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 10),
 
-                  // Full Name Field
-                  TextField(
-                    controller: _nameController,
-                    decoration: InputDecoration(
-                      labelText: context.tr('fullName'),
-                      prefixIcon: const Icon(Icons.person_outline_rounded),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Phone Field
+                  // ── 3. Telefon raqam ──
                   TextField(
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                     decoration: InputDecoration(
                       labelText: context.tr('phoneNumber'),
-                      prefixIcon: const Icon(Icons.phone_outlined),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Parent Phone Field
-                  TextField(
-                    controller: _parentPhoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      labelText: context.tr('parentPhone'),
-                      prefixIcon: const Icon(Icons.contact_phone_outlined),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Email Field
-                  TextField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      labelText: context.tr('email'),
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Read-Only Academic Section
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          context.tr('academicInfo'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
+                      labelStyle: TextStyle(
+                        color: isDark ? const Color(0xFFCBD5E1) : Colors.black87,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1E293B) : AppColors.surfaceSecondary,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          context.tr('readOnlyBadge'),
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? const Color(0xFF94A3B8) : AppColors.textMuted,
-                          ),
-                        ),
+                      prefixIcon: Icon(
+                        Icons.phone_outlined,
+                        size: 20,
+                        color: isDark ? Colors.white70 : Colors.black87,
                       ),
-                    ],
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 10),
 
+                  // ── 4. Ota-ona telefon raqami ──
+                  TextField(
+                    controller: _parentPhoneController,
+                    keyboardType: TextInputType.phone,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: context.tr('parentPhone'),
+                      labelStyle: TextStyle(
+                        color: isDark ? const Color(0xFFCBD5E1) : Colors.black87,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.phone_outlined,
+                        size: 20,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // ── 5. O'quv markaz ma'lumotlari (Ixcham) ──
                   Container(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF1E293B) : AppColors.surfaceSecondary,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: theme.colorScheme.outline),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                      ),
                     ),
                     child: Column(
                       children: [
-                        _ReadOnlyRow(label: context.tr('studentIdReadOnly'), value: widget.student.id),
-                        const SizedBox(height: 6),
-                        _ReadOnlyRow(label: context.tr('groupReadOnly'), value: widget.student.group),
-                        const SizedBox(height: 6),
-                        _ReadOnlyRow(label: context.tr('courseReadOnly'), value: widget.student.courseName),
-                        const SizedBox(height: 6),
-                        _ReadOnlyRow(label: context.tr('mentorReadOnly'), value: widget.student.mentorName),
-                        const SizedBox(height: 6),
-                        _ReadOnlyRow(label: context.tr('roomReadOnly'), value: widget.student.room),
+                        _SimpleInfoRow(
+                          label: '${context.tr('group')}:',
+                          value: widget.student.group.isNotEmpty
+                              ? widget.student.group
+                              : widget.student.courseName,
+                        ),
+                        const SizedBox(height: 4),
+                        _SimpleInfoRow(
+                          label: '${context.tr('mentor')}:',
+                          value: widget.student.mentorName,
+                        ),
+                        const SizedBox(height: 4),
+                        _SimpleInfoRow(
+                          label: '${context.tr('room')}:',
+                          value: widget.student.room,
+                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 16),
 
-                  // Save Button
+                  // ── 6. Saqlash tugmasi ──
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _save,
-                      icon: const Icon(Icons.check_circle_rounded, size: 18),
-                      label: Text(
-                        context.tr('saveChanges'),
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
-                      ),
+                    height: 46,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _save,
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: isDark ? AppColors.accentLime : AppColors.brandNavy,
+                        foregroundColor: isDark ? const Color(0xFF00213D) : Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
+                      child: _isLoading
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  isDark ? const Color(0xFF00213D) : Colors.white,
+                                ),
+                              ),
+                            )
+                          : Text(
+                              context.tr('save'),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                              ),
+                            ),
                     ),
                   ),
                 ],
@@ -406,25 +367,24 @@ class _EditProfileModalState extends State<EditProfileModal> {
   }
 }
 
-class _ReadOnlyRow extends StatelessWidget {
-  const _ReadOnlyRow({required this.label, required this.value});
+class _SimpleInfoRow extends StatelessWidget {
+  const _SimpleInfoRow({required this.label, required this.value});
 
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
           style: TextStyle(
-            fontSize: 11.5,
-            color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: isDark ? const Color(0xFFCBD5E1) : Colors.black87,
           ),
         ),
         const SizedBox(width: 8),
@@ -435,13 +395,116 @@ class _ReadOnlyRow extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-              color: theme.colorScheme.onSurface,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white : Colors.black,
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _CompactAvatarButton extends StatelessWidget {
+  const _CompactAvatarButton({
+    required this.isFemale,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final bool isFemale;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Uniform, calm selection color without aggressive bright red
+    final activeColor = isDark ? AppColors.accentLime : AppColors.brandNavy;
+    final iconColor = isDark ? Colors.white : const Color(0xFF00213D);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          AppHaptics.selection();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? activeColor.withValues(alpha: isDark ? 0.16 : 0.08)
+                : (isDark ? const Color(0xFF1E293B) : AppColors.surfaceSecondary),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isSelected
+                  ? activeColor
+                  : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+              width: isSelected ? 1.8 : 1,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Small Circular Avatar (36px) - Uniform clean color
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                  border: Border.all(
+                    color: isSelected
+                        ? activeColor.withValues(alpha: 0.6)
+                        : (isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
+                    width: 1,
+                  ),
+                ),
+                child: Center(
+                  child: GenderAvatarWidget(
+                    isFemale: isFemale,
+                    size: 26,
+                    color: iconColor,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Text Label
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                    color: isSelected
+                        ? (isDark ? Colors.white : Colors.black)
+                        : (isDark ? const Color(0xFFCBD5E1) : Colors.black87),
+                  ),
+                ),
+              ),
+
+              if (isSelected) ...[
+                const SizedBox(width: 6),
+                Icon(
+                  Icons.check_circle_rounded,
+                  size: 16,
+                  color: activeColor,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

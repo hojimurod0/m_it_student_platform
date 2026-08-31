@@ -69,4 +69,17 @@ class MockAuthRepository implements AuthRepository {
   Future<UserModel?> restoreSession() async {
     return _currentUser;
   }
+
+  @override
+  Future<void> sendFcmToken(String fcmToken) async {
+    // Mock repository: no-op for offline dev mode
+  }
+
+  @override
+  Future<void> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+  }
 }

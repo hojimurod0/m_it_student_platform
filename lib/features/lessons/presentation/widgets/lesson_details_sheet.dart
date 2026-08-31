@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
+import 'package:m_it_student_platform/core/services/reminder_service.dart';
+import 'package:m_it_student_platform/core/widgets/ui/mit_toast.dart';
 import 'package:m_it_student_platform/features/lessons/data/repositories/mock_lessons_repository.dart';
 import 'package:m_it_student_platform/features/lessons/domain/models/lesson_model.dart';
 
@@ -54,22 +56,28 @@ class LessonDetailsSheet extends StatelessWidget {
           const SizedBox(height: 18),
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.primary.withValues(alpha: 0.25) : AppColors.primarySurface,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  lesson.courseCode,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? AppColors.primaryAccent : AppColors.primary,
+              if (lesson.courseCode.isNotEmpty) ...[
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.primary.withValues(alpha: 0.25) : AppColors.primarySurface,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      lesson.courseCode,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? AppColors.primaryAccent : AppColors.primary,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
+                const SizedBox(width: 8),
+              ],
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -85,64 +93,157 @@ class LessonDetailsSheet extends StatelessWidget {
                   ),
                 ),
               ),
+              const Spacer(),
+              InkWell(
+                onTap: () {
+                  ReminderService.toggleLessonReminder(context, lesson);
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentLime.withValues(alpha: isDark ? 0.2 : 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.accentLime.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.notifications_active_rounded, size: 14, color: AppColors.success),
+                      const SizedBox(width: 4),
+                      Text(
+                        context.tr('reminder'),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? AppColors.accentLime : AppColors.success,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
             lesson.subject,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
               color: theme.colorScheme.onSurface,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            '${lesson.teacher} • ${lesson.teacherRole}',
-            style: TextStyle(
-              fontSize: 13,
-              color: isDark ? const Color(0xFFCBD5E1) : AppColors.textSecondary,
+          if (lesson.teacher.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              lesson.teacherRole.isNotEmpty
+                  ? '${lesson.teacher} • ${lesson.teacherRole}'
+                  : lesson.teacher,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? const Color(0xFFCBD5E1) : AppColors.textSecondary,
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 16),
           Divider(color: theme.colorScheme.outline),
           const SizedBox(height: 14),
 
           // Schedule & Room Info Box
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : AppColors.surfaceSecondary,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                width: 1,
+              ),
             ),
             child: Column(
               children: [
-                _InfoRow(
-                  icon: Icons.access_time_filled_rounded,
-                  label: context.tr('classSchedule'),
-                  value: '${lesson.startTime} – ${lesson.endTime} (${lesson.durationMinutes} min)',
-                ),
-                const SizedBox(height: 10),
-                _InfoRow(
-                  icon: Icons.calendar_today_rounded,
-                  label: 'Kunlar',
-                  value: '${lesson.scheduleDays} (${lesson.dayOfWeek})',
-                ),
-                const SizedBox(height: 10),
-                _InfoRow(
-                  icon: Icons.meeting_room_rounded,
-                  label: context.tr('labRoom'),
-                  value: '${lesson.room}, ${lesson.building}',
-                ),
-                const SizedBox(height: 10),
-                _InfoRow(
-                  icon: Icons.person_rounded,
-                  label: context.tr('mentor'),
-                  value: lesson.teacher,
-                ),
+                if (lesson.teacher.isNotEmpty)
+                  _InfoRow(
+                    icon: Icons.person_rounded,
+                    label: context.tr('headMentor'),
+                    value: '${lesson.teacher}${lesson.teacherRole.isNotEmpty ? ' (${lesson.teacherRole})' : ''}',
+                  ),
+                if (lesson.supportTeacher != null && lesson.supportTeacher!.isNotEmpty) ...[
+                  if (lesson.teacher.isNotEmpty) const SizedBox(height: 12),
+                  _InfoRow(
+                    icon: Icons.support_agent_rounded,
+                    label: context.tr('assistantMentor'),
+                    value: '${lesson.supportTeacher!}${lesson.supportTeacherRole != null && lesson.supportTeacherRole!.isNotEmpty ? ' (${lesson.supportTeacherRole})' : ''}',
+                  ),
+                ],
+                if (lesson.startTime.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _InfoRow(
+                    icon: Icons.access_time_filled_rounded,
+                    label: context.tr('classSchedule'),
+                    value: '${lesson.startTime} – ${lesson.endTime}${lesson.durationMinutes > 0 ? ' (${lesson.durationMinutes} min)' : ''}',
+                  ),
+                ],
+                if (lesson.scheduleDays.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _InfoRow(
+                    icon: Icons.calendar_today_rounded,
+                    label: context.tr('lessonDays'),
+                    value: '${lesson.scheduleDays}${lesson.dayOfWeek.isNotEmpty && lesson.dayOfWeek != lesson.scheduleDays ? ' (${lesson.dayOfWeek})' : ''}',
+                  ),
+                ],
+                if (lesson.room.isNotEmpty || (lesson.branchName != null && lesson.branchName!.isNotEmpty)) ...[
+                  const SizedBox(height: 12),
+                  _InfoRow(
+                    icon: Icons.meeting_room_rounded,
+                    label: context.tr('labRoom'),
+                    value: '${lesson.room.isNotEmpty ? lesson.room : 'Asosiy xona'}${lesson.branchName != null && lesson.branchName!.isNotEmpty ? ', ${lesson.branchName}' : ''}',
+                  ),
+                ],
+                if (lesson.monthlyFee != null && lesson.monthlyFee!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _InfoRow(
+                    icon: Icons.payments_rounded,
+                    label: context.tr('statMonthlyTuition'),
+                    value: lesson.monthlyFee!,
+                  ),
+                ],
+                if (lesson.studentCount != null) ...[
+                  const SizedBox(height: 12),
+                  _InfoRow(
+                    icon: Icons.groups_rounded,
+                    label: context.tr('groupStudentsCount'),
+                    value: '${lesson.studentCount} ta talaba',
+                  ),
+                ],
               ],
             ),
           ),
+
+          if (lesson.description != null && lesson.description!.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Text(
+              context.tr('aboutGroup'),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              lesson.description!,
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? const Color(0xFFCBD5E1) : AppColors.textSecondary,
+              ),
+            ),
+          ],
 
           if (lesson.syllabusTopic != null) ...[
             const SizedBox(height: 14),
@@ -184,6 +285,69 @@ class LessonDetailsSheet extends StatelessWidget {
             ),
           ],
 
+          // Uy vazifasi bloki
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF001E36) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: isDark ? const Color(0xFF002F52) : const Color(0xFFCBD5E1),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.assignment_turned_in_rounded, size: 18, color: Color(0xFFD3FF32)),
+                        const SizedBox(width: 8),
+                        Text(
+                          context.tr('lessonTask'),
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? Colors.white : const Color(0xFF001E36),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD3FF32).withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        context.tr('submitAction'),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF769B00),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  lesson.syllabusTopic != null && lesson.syllabusTopic!.isNotEmpty
+                      ? '${lesson.syllabusTopic} • ${context.tr('doPracticalTasks')}'
+                      : context.tr('doPracticalTasks'),
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.4,
+                    color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           const SizedBox(height: 22),
           SizedBox(
             width: double.infinity,
@@ -215,17 +379,21 @@ class _InfoRow extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          size: 17,
-          color: isDark ? AppColors.primaryAccent : AppColors.primary,
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(
+            icon,
+            size: 16,
+            color: isDark ? AppColors.primaryAccent : AppColors.primary,
+          ),
         ),
         const SizedBox(width: 10),
         Text(
           '$label: ',
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 12.5,
             color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
             fontWeight: FontWeight.w500,
           ),
@@ -233,12 +401,14 @@ class _InfoRow extends StatelessWidget {
         Expanded(
           child: Text(
             value,
-            maxLines: 1,
+            softWrap: true,
+            maxLines: 3,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 12.5,
               color: theme.colorScheme.onSurface,
               fontWeight: FontWeight.w700,
+              height: 1.25,
             ),
           ),
         ),
@@ -294,25 +464,14 @@ class _TopicDetailsSheetState extends State<TopicDetailsSheet> {
   void _submit() {
     final text = _urlController.text.trim();
     if (text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Iltimos, yechim havolasini yoki GitHub linkini kiriting!'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      MitToast.warning(context, context.tr('homeworkRequiredError'));
       return;
     }
 
     setState(() => _isSubmitting = true);
     MockLessonsRepository.submitTopicHomework(widget.topic.id, text);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Vazifa muvaffaqiyatli topshirildi!'),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    MitToast.success(context, context.tr('homeworkSubmitted'));
 
     widget.onSubmitted?.call();
     Navigator.pop(context);
@@ -414,7 +573,7 @@ class _TopicDetailsSheetState extends State<TopicDetailsSheet> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Fayllar (${topic.attachments.length})',
+                      '${context.tr('files')} (${topic.attachments.length})',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
@@ -435,7 +594,7 @@ class _TopicDetailsSheetState extends State<TopicDetailsSheet> {
                             const Icon(Icons.timer_outlined, size: 14, color: Color(0xFFEF4444)),
                             const SizedBox(width: 4),
                             Text(
-                              '${topic.remainingTime} qoldi',
+                              '${topic.remainingTime} ${context.tr('remainingSuffix')}',
                               style: const TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w700,
@@ -457,17 +616,25 @@ class _TopicDetailsSheetState extends State<TopicDetailsSheet> {
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: theme.colorScheme.outline),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF334155) : theme.colorScheme.outline,
+                      ),
                     ),
                     child: Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: isDark ? 0.25 : 0.12),
+                            color: isDark
+                                ? AppColors.accentLime.withValues(alpha: 0.15)
+                                : AppColors.primary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(Icons.insert_drive_file_rounded, size: 20, color: AppColors.primary),
+                          child: Icon(
+                            Icons.insert_drive_file_rounded,
+                            size: 20,
+                            color: isDark ? AppColors.accentLime : AppColors.primary,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -494,13 +661,11 @@ class _TopicDetailsSheetState extends State<TopicDetailsSheet> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.download_rounded),
-                          color: AppColors.primary,
+                          color: isDark ? AppColors.accentLime : AppColors.primary,
                           onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('${file.name} muvaffaqiyatli yuklab olindi!'),
-                                behavior: SnackBarBehavior.floating,
-                              ),
+                            MitToast.success(
+                              context,
+                              '${file.name} ${context.tr('materialDownloaded')}',
                             );
                           },
                         ),
@@ -514,9 +679,11 @@ class _TopicDetailsSheetState extends State<TopicDetailsSheet> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.6) : const Color(0xFFF8FAFC),
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.6)),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF334155) : theme.colorScheme.outline,
+                    ),
                   ),
                   child: Text(
                     topic.description,
@@ -531,7 +698,7 @@ class _TopicDetailsSheetState extends State<TopicDetailsSheet> {
 
                 // 6. Mening jo'natmalarim (My Submissions)
                 Text(
-                  'Mening jo\'natmalarim',
+                  context.tr('mySubmissions'),
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
@@ -545,7 +712,9 @@ class _TopicDetailsSheetState extends State<TopicDetailsSheet> {
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: theme.colorScheme.outline),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF334155) : theme.colorScheme.outline,
+                    ),
                   ),
                   child: Column(
                     children: [
@@ -555,7 +724,9 @@ class _TopicDetailsSheetState extends State<TopicDetailsSheet> {
                           width: 60,
                           height: 60,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFEF3C7),
+                            color: isDark
+                                ? const Color(0xFFF59E0B).withValues(alpha: 0.2)
+                                : const Color(0xFFFEF3C7),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: const Center(
@@ -579,7 +750,7 @@ class _TopicDetailsSheetState extends State<TopicDetailsSheet> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Topshirilgan: ${topic.submittedUrl}',
+                                  '${context.tr('submittedPrefix')}: ${topic.submittedUrl}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
@@ -598,7 +769,7 @@ class _TopicDetailsSheetState extends State<TopicDetailsSheet> {
                       TextField(
                         controller: _urlController,
                         decoration: InputDecoration(
-                          hintText: 'GitHub repozitoriy yoki yechim havolasi...',
+                          hintText: context.tr('githubSolutionHint'),
                           hintStyle: TextStyle(
                             fontSize: 12,
                             color: isDark ? const Color(0xFF64748B) : AppColors.textMuted,
@@ -627,7 +798,7 @@ class _TopicDetailsSheetState extends State<TopicDetailsSheet> {
                             ),
                           ),
                           child: Text(
-                            topic.submittedUrl != null ? 'Qayta yuborish' : 'Vazifani jo\'natish',
+                            topic.submittedUrl != null ? context.tr('resubmitHomework') : context.tr('submitHomework'),
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,

@@ -2,8 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
+import 'package:m_it_student_platform/core/routes/app_routes.dart';
+import 'package:m_it_student_platform/core/storage/local_storage_service.dart';
 import 'package:m_it_student_platform/core/widgets/app_logo.dart';
-import 'package:m_it_student_platform/features/auth/presentation/screens/login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -44,26 +45,28 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    _timer = Timer(const Duration(milliseconds: 3000), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            transitionDuration: const Duration(milliseconds: 500),
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const LoginScreen(),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              return FadeTransition(
-                opacity: CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeInOut,
-                ),
-                child: child,
-              );
-            },
-          ),
-        );
+    _timer = Timer(const Duration(milliseconds: 1800), () {
+      if (!mounted) return;
+      
+      final token = LocalStorageService.getAuthToken();
+      final hasValidSession = LocalStorageService.isLoggedIn() && token != null && token.isNotEmpty;
+      
+      if (!hasValidSession) {
+        LocalStorageService.clearAuth();
       }
+      
+      String targetRoute;
+      if (hasValidSession) {
+        targetRoute = AppRoutes.dashboard;
+      } else if (!LocalStorageService.hasSelectedLanguage()) {
+        targetRoute = AppRoutes.languageSelection;
+      } else if (!LocalStorageService.hasCompletedOnboarding()) {
+        targetRoute = AppRoutes.onboarding;
+      } else {
+        targetRoute = AppRoutes.login;
+      }
+
+      Navigator.of(context).pushReplacementNamed(targetRoute);
     });
   }
 
@@ -166,7 +169,7 @@ class _SplashScreenState extends State<SplashScreen>
                             child: CircularProgressIndicator(
                               strokeWidth: 2.5,
                               valueColor:
-                                  AlwaysStoppedAnimation<Color>(AppColors.primary),
+                                  AlwaysStoppedAnimation<Color>(AppColors.primaryAccent),
                             ),
                           ),
                           const SizedBox(height: 14),

@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
-import 'package:m_it_student_platform/features/auth/data/repositories/mock_auth_repository.dart';
+import 'package:m_it_student_platform/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:m_it_student_platform/features/auth/domain/models/user_model.dart';
 import 'package:m_it_student_platform/features/auth/domain/repositories/auth_repository.dart';
 
 class AuthController extends ChangeNotifier {
   AuthController({AuthRepository? authRepository})
-      : _authRepository = authRepository ?? MockAuthRepository.instance;
+      : _authRepository = authRepository ?? AuthRepositoryImpl();
 
   final AuthRepository _authRepository;
 
@@ -43,7 +43,7 @@ class AuthController extends ChangeNotifier {
       return false;
     } catch (_) {
       _isLoading = false;
-      _errorMessage = 'Telefon raqami yoki parol noto\'g\'ri';
+      _errorMessage = 'Login yoki parol noto\'g\'ri';
       notifyListeners();
       return false;
     }

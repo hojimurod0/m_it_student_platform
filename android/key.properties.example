@@ -1,0 +1,8 @@
+# Bu fayldan nusxa olib, 'android/key.properties' nomi bilan saqlang
+# va o'zingizning kalit ma'lumotlaringizni kiriting.
+# Diqqat: 'key.properties' va '.jks' fayllarini hech qachon GitHub ga yuklamang (.gitignore ga qo'shilgan).
+
+keyAlias=upload
+keyPassword=SIZNING_KEY_PAROLINGIZ
+storeFile=../upload-keystore.jks
+storePassword=SIZNING_STORE_PAROLINGIZ
