@@ -1,9 +1,10 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
-import 'package:m_it_student_platform/features/notifications/presentation/bloc/notifications_bloc.dart';
+import 'package:m_it_student_platform/core/utils/haptics.dart';
 
+/// Gamification-style Animated In-Progress Notifications Screen
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
@@ -11,11 +12,23 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _NotificationsScreenState extends State<NotificationsScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+
   @override
   void initState() {
     super.initState();
-    context.read<NotificationsBloc>().add(const LoadNotificationsEvent());
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
   }
 
   @override
@@ -23,284 +36,297 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    final bgColor = isDark ? const Color(0xFF0A0F1D) : const Color(0xFFF8FAFC);
+    final cardBg = isDark ? const Color(0xFF111927) : Colors.white;
+    final borderColor = isDark ? const Color(0xFF1E2D42) : const Color(0xFFE2E8F0);
+    final titleColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final descColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
-        title: Text(context.tr('notificationsTitle')),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.done_all_rounded),
-            tooltip: context.tr('markAllReadTooltip'),
-            onPressed: () {
-              // Barcha bildirishnomalarni o'qilgan qilish
-            },
+        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 20,
+            color: isDark ? Colors.white : AppColors.brandNavy,
           ),
-        ],
+          onPressed: () {
+            AppHaptics.light();
+            Navigator.of(context).maybePop();
+          },
+        ),
+        title: Text(
+          context.tr('notificationsTitle'),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.3,
+            color: isDark ? Colors.white : AppColors.brandNavy,
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: borderColor, height: 1),
+        ),
       ),
-      body: BlocBuilder<NotificationsBloc, NotificationsState>(
-        builder: (context, state) {
-          if (state is NotificationsLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: borderColor, width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.06),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── Animated Clash of Clans Double Hammers ──
+                  SizedBox(
+                    width: 140,
+                    height: 115,
+                    child: AnimatedBuilder(
+                      animation: _animController,
+                      builder: (context, _) {
+                        final t = _animController.value;
+                        final strikeFactor = math.sin(t * math.pi * 2);
 
-          if (state is NotificationsError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.danger),
-                    const SizedBox(height: 12),
-                    Text(
-                      state.message,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () {
-                        context.read<NotificationsBloc>().add(const LoadNotificationsEvent());
+                        final leftAngle = -0.48 + (strikeFactor * 0.32);
+                        final rightAngle = 0.48 - (strikeFactor * 0.32);
+                        final isStriking = (strikeFactor > 0.85);
+
+                        return Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Impact Spark Glow
+                            if (isStriking)
+                              Positioned(
+                                top: 16,
+                                child: Container(
+                                  width: 34,
+                                  height: 34,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: RadialGradient(
+                                      colors: [
+                                        const Color(0xFFFFD700).withValues(alpha: 0.9),
+                                        const Color(0xFFFFA500).withValues(alpha: 0.3),
+                                        Colors.transparent,
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                            // Left Hammer
+                            Positioned(
+                              left: 16,
+                              bottom: 10,
+                              child: Transform.rotate(
+                                angle: leftAngle,
+                                alignment: Alignment.bottomLeft,
+                                child: const _ClashHammer(isFacingRight: true),
+                              ),
+                            ),
+
+                            // Right Hammer
+                            Positioned(
+                              right: 16,
+                              bottom: 10,
+                              child: Transform.rotate(
+                                angle: rightAngle,
+                                alignment: Alignment.bottomRight,
+                                child: const _ClashHammer(isFacingRight: false),
+                              ),
+                            ),
+                          ],
+                        );
                       },
-                      child: Text(context.tr('retry')),
                     ),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          if (state is NotificationsLoaded) {
-            if (state.notifications.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.notifications_none_rounded,
-                      size: 64,
-                      color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      context.tr('noNotifications'),
-                      style: TextStyle(
-                        color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return RefreshIndicator(
-              onRefresh: () async {
-                context.read<NotificationsBloc>().add(const LoadNotificationsEvent());
-              },
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                itemCount: state.notifications.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  final item = state.notifications[index];
-                  return _NotificationTile(
-                    item: item,
-                    isDark: isDark,
-                    theme: theme,
-                    onTap: () {
-                      if (!item.isRead) {
-                        context
-                            .read<NotificationsBloc>()
-                            .add(MarkNotificationReadEvent(item.id));
-                      }
-                      _showNotificationDetails(context, item);
-                    },
-                  );
-                },
-              ),
-            );
-          }
-
-          return const SizedBox.shrink();
-        },
-      ),
-    );
-  }
-
-  void _showNotificationDetails(BuildContext context, InAppNotification item) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                item.title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 12),
-              Text(item.body),
-              const SizedBox(height: 16),
-              Text(
-                item.createdAt,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textMuted,
-                    ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _NotificationTile extends StatelessWidget {
-  const _NotificationTile({
-    required this.item,
-    required this.isDark,
-    required this.theme,
-    required this.onTap,
-  });
-
-  final InAppNotification item;
-  final bool isDark;
-  final ThemeData theme;
-  final VoidCallback onTap;
-
-  IconData _typeIcon() {
-    switch (item.type) {
-      case NotificationType.homework:
-        return Icons.assignment_rounded;
-      case NotificationType.grade:
-        return Icons.grade_rounded;
-      case NotificationType.payment:
-        return Icons.payment_rounded;
-      case NotificationType.announcement:
-        return Icons.campaign_rounded;
-      case NotificationType.chat:
-        return Icons.chat_rounded;
-      case NotificationType.attendance:
-        return Icons.co_present_rounded;
-      case NotificationType.info:
-      case NotificationType.general:
-        return Icons.notifications_rounded;
-    }
-  }
-
-  Color _typeColor() {
-    switch (item.type) {
-      case NotificationType.homework:
-        return const Color(0xFF8B5CF6);
-      case NotificationType.grade:
-        return const Color(0xFF22C55E);
-      case NotificationType.payment:
-        return const Color(0xFFF59E0B);
-      case NotificationType.announcement:
-        return AppColors.secondary;
-      case NotificationType.chat:
-        return const Color(0xFF3B82F6);
-      case NotificationType.attendance:
-        return const Color(0xFF10B981);
-      case NotificationType.info:
-      case NotificationType.general:
-        return AppColors.textMuted;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final color = _typeColor();
-
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
-        opacity: item.isRead ? 0.65 : 1.0,
-        child: Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurface : AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: !item.isRead
-                  ? color.withValues(alpha: 0.4)
-                  : (isDark ? AppColors.darkCardBorder : AppColors.cardBorder),
-              width: !item.isRead ? 1.5 : 1,
-            ),
-          ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(_typeIcon(), color: color, size: 22),
-                ),
-                if (!item.isRead)
-                  Positioned(
-                    top: -2,
-                    right: -2,
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isDark ? AppColors.darkSurface : Colors.white,
-                          width: 1.5,
-                        ),
+                  const SizedBox(height: 18),
+
+                  // ── "Jarayonda" Title ──
+                  Text(
+                    context.tr('inProgressTitle'),
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.3,
+                      color: titleColor,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  Text(
+                    'Bildirishnomalar va e\'lonlar markazi tez kunda to\'liq ishga tushadi.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      height: 1.45,
+                      color: descColor,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // ── Back / Action Button ──
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        AppHaptics.light();
+                        Navigator.of(context).maybePop();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isDark ? AppColors.accentLime : AppColors.brandNavy,
+                        foregroundColor: isDark ? Colors.black : Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Tushunarli',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
                       ),
                     ),
                   ),
-              ],
-            ),
-            title: Text(
-              item.title,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: item.isRead ? FontWeight.w500 : FontWeight.w700,
-                color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                ],
               ),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 2),
-                Text(
-                  item.message,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  item.createdAt.length > 10 ? item.createdAt.substring(0, 10) : item.createdAt,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
-                  ),
-                ),
-              ],
             ),
           ),
         ),
       ),
     );
   }
+}
+
+class _ClashHammer extends StatelessWidget {
+  const _ClashHammer({required this.isFacingRight});
+
+  final bool isFacingRight;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 58,
+      height: 72,
+      child: CustomPaint(
+        painter: _HammerPainter(isFacingRight: isFacingRight),
+      ),
+    );
+  }
+}
+
+class _HammerPainter extends CustomPainter {
+  const _HammerPainter({required this.isFacingRight});
+
+  final bool isFacingRight;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    // 1. Wooden Handle
+    final handlePaint = Paint()
+      ..color = const Color(0xFF8D5B28)
+      ..style = PaintingStyle.fill;
+
+    final handleHighlight = Paint()
+      ..color = const Color(0xFFA76E36)
+      ..style = PaintingStyle.fill;
+
+    final handlePath = Path();
+    handlePath.addRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.42, h * 0.22, w * 0.16, h * 0.72),
+        const Radius.circular(4),
+      ),
+    );
+    canvas.drawPath(handlePath, handlePaint);
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.44, h * 0.25, w * 0.05, h * 0.65),
+        const Radius.circular(2),
+      ),
+      handleHighlight,
+    );
+
+    final gripPaint = Paint()
+      ..color = const Color(0xFF5A3918)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    canvas.drawLine(Offset(w * 0.42, h * 0.60), Offset(w * 0.58, h * 0.65), gripPaint);
+    canvas.drawLine(Offset(w * 0.42, h * 0.72), Offset(w * 0.58, h * 0.77), gripPaint);
+
+    // 2. Metallic Hammer Head
+    final steelPaint = Paint()
+      ..color = const Color(0xFF475569)
+      ..style = PaintingStyle.fill;
+
+    final steelLight = Paint()
+      ..color = const Color(0xFF94A3B8)
+      ..style = PaintingStyle.fill;
+
+    final steelDark = Paint()
+      ..color = const Color(0xFF1E293B)
+      ..style = PaintingStyle.fill;
+
+    final headRect = Rect.fromCenter(
+      center: Offset(w * 0.50, h * 0.18),
+      width: w * 0.88,
+      height: h * 0.28,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(headRect, const Radius.circular(5)),
+      steelPaint,
+    );
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.10, h * 0.06, w * 0.80, h * 0.08),
+        const Radius.circular(3),
+      ),
+      steelLight,
+    );
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.10, h * 0.24, w * 0.80, h * 0.08),
+        const Radius.circular(3),
+      ),
+      steelDark,
+    );
+
+    final goldPaint = Paint()
+      ..color = const Color(0xFFF59E0B)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.38, h * 0.05, w * 0.24, h * 0.30),
+        const Radius.circular(2),
+      ),
+      goldPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _HammerPainter oldDelegate) => false;
 }

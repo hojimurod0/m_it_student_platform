@@ -1,4 +1,4 @@
-# Google Play Market (Play Console) ga Chiqarish Bo'yicha To'liq Qo'llanma
+      # Google Play Market (Play Console) ga Chiqarish Bo'yicha To'liq Qo'llanma
 
 Bu qo'llanma **M-IT Student Platform (M-IT ERP)** ilovasini Google Play Console orqali Play Marketga muvaffaqiyatli chiqarish uchun qadam-baqadam ko'rsatmalarni o'z ichiga oladi.
 
@@ -18,7 +18,7 @@ Bu qo'llanma **M-IT Student Platform (M-IT ERP)** ilovasini Google Play Console 
 Google Play Console'ga yuklanadigan barcha ilovalar raqamli kalit bilan imzolanishi shart.
 
 ### 1-usul: Avtomatik skript orqali (Tavsiya etiladi)
-Loyiha papkasidagi [`scripts/generate_keystore.bat`](file:///d:/M-IT/m_it_student_platform/scripts/generate_keystore.bat) faylini sichqoncha bilan 2 marta bosing va parollarni kiriting.
+Loyiha papkasidagi [`scripts/generate_keystore.bat`](file:///d:/M-IT/m_it_student_platform/scripts/generate_ke ystore.bat) faylini sichqoncha bilan 2 marta bosing va parollarni kiriting.
 
 ### 2-usul: Terminal (CMD / PowerShell) orqali
 ```bash

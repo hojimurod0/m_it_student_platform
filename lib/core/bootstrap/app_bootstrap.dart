@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:m_it_student_platform/core/di/injection_container.dart';
+import 'package:m_it_student_platform/core/network/api_client.dart';
+import 'package:m_it_student_platform/core/routes/app_router.dart';
+import 'package:m_it_student_platform/core/routes/app_routes.dart';
 import 'package:m_it_student_platform/core/services/notification_service.dart';
 import 'package:m_it_student_platform/core/storage/local_storage_service.dart';
 import 'package:m_it_student_platform/core/utils/app_bloc_observer.dart';
@@ -14,6 +17,14 @@ abstract final class AppBootstrap {
     WidgetsFlutterBinding.ensureInitialized();
     await initDependencies();
     Bloc.observer = AppBlocObserver();
+
+    ApiClient.onUnauthorized = () {
+      AppLogger.warning('🚨 Sessiya muddati tugadi (401). Login ekraniga o\'tilmoqda...', tag: 'AUTH');
+      AppRouter.navigatorKey.currentState?.pushNamedAndRemoveUntil(
+        AppRoutes.login,
+        (route) => false,
+      );
+    };
 
     FlutterError.onError = (details) {
       FlutterError.presentError(details);

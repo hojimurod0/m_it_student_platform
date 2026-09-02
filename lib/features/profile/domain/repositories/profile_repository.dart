@@ -7,6 +7,7 @@ abstract class ProfileRepository {
   Future<StudentProfile> updateProfile({
     String? fullName,
     String? phone,
+    String? parentName,
     String? parentPhone,
     String? email,
     String? gender,
@@ -14,4 +15,5 @@ abstract class ProfileRepository {
   });
   Future<List<GradeItem>> getStudentGrades();
   Future<List<AttendanceRecord>> getStudentAttendance();
+  Future<void> deleteAccount({String password = '', String? reason});
 }

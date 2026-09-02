@@ -468,12 +468,14 @@ class _MentorChatModalState extends State<MentorChatModal> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: _msgController.text.trim().isNotEmpty
-                          ? AppColors.primary
+                          ? (isDark ? AppColors.accentLime : AppColors.brandNavy)
                           : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.send_rounded,
-                      color: Colors.white,
+                      color: _msgController.text.trim().isNotEmpty
+                          ? (isDark ? AppColors.brandNavy : Colors.white)
+                          : (isDark ? const Color(0xFF64748B) : Colors.white70),
                       size: 20,
                     ),
                   ),
@@ -496,7 +498,7 @@ class _MentorChatModalState extends State<MentorChatModal> {
           constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.80),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: AppColors.primary,
+            color: isDark ? AppColors.accentLime : AppColors.brandNavy,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(16),
               topRight: Radius.circular(16),
@@ -509,10 +511,11 @@ class _MentorChatModalState extends State<MentorChatModal> {
             children: [
               Text(
                 msg.text,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13.5,
                   height: 1.35,
-                  color: Colors.white,
+                  fontWeight: isDark ? FontWeight.w700 : FontWeight.normal,
+                  color: isDark ? AppColors.brandNavy : Colors.white,
                 ),
               ),
               const SizedBox(height: 3),
@@ -520,7 +523,9 @@ class _MentorChatModalState extends State<MentorChatModal> {
                 msg.time,
                 style: TextStyle(
                   fontSize: 10,
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: isDark
+                      ? AppColors.brandNavy.withValues(alpha: 0.75)
+                      : Colors.white.withValues(alpha: 0.7),
                 ),
               ),
             ],

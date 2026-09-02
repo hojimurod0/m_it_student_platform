@@ -31,6 +31,7 @@ class _MitStudentAppState extends State<MitStudentApp> {
           child: ListenableBuilder(
             listenable: _settings,
             builder: (context, _) => MaterialApp(
+              navigatorKey: AppRouter.navigatorKey,
               title: 'M-IT Academy',
               debugShowCheckedModeBanner: false,
               theme: AppTheme.lightTheme,

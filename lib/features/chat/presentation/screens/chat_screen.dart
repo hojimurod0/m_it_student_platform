@@ -163,8 +163,11 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.chat_bubble_outline_rounded,
-                            size: 56, color: AppColors.textMuted),
+                        Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          size: 56,
+                          color: isDark ? const Color(0xFF94A3B8) : AppColors.textMuted,
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           'Hali xabarlar yo\'q\nBirinchi xabarni yozing!',
@@ -452,19 +455,25 @@ class _ChatInputBar extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryLight],
+                gradient: LinearGradient(
+                  colors: isDark
+                      ? const [AppColors.primaryAccent, Color(0xFFAEE61A)]
+                      : const [AppColors.primary, AppColors.primaryLight],
                 ),
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.3),
+                    color: (isDark ? AppColors.primaryAccent : AppColors.primary).withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
                 ],
               ),
-              child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+              child: Icon(
+                Icons.send_rounded,
+                color: isDark ? AppColors.brandNavy : Colors.white,
+                size: 20,
+              ),
             ),
           ),
         ],

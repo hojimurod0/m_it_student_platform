@@ -15,6 +15,9 @@ class HomeworkItem {
   final String? githubRepoUrl;
   final int? score;
   final String? mentorFeedback;
+  final String? lessonId;
+  final String? lessonTitle;
+  final String? attachmentUrl;
 
   const HomeworkItem({
     required this.id,
@@ -26,6 +29,9 @@ class HomeworkItem {
     this.githubRepoUrl,
     this.score,
     this.mentorFeedback,
+    this.lessonId,
+    this.lessonTitle,
+    this.attachmentUrl,
   });
 
   HomeworkItem copyWith({
@@ -38,6 +44,9 @@ class HomeworkItem {
     String? githubRepoUrl,
     int? score,
     String? mentorFeedback,
+    String? lessonId,
+    String? lessonTitle,
+    String? attachmentUrl,
   }) {
     return HomeworkItem(
       id: id ?? this.id,
@@ -49,6 +58,9 @@ class HomeworkItem {
       githubRepoUrl: githubRepoUrl ?? this.githubRepoUrl,
       score: score ?? this.score,
       mentorFeedback: mentorFeedback ?? this.mentorFeedback,
+      lessonId: lessonId ?? this.lessonId,
+      lessonTitle: lessonTitle ?? this.lessonTitle,
+      attachmentUrl: attachmentUrl ?? this.attachmentUrl,
     );
   }
 

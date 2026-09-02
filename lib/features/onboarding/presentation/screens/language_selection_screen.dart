@@ -58,12 +58,15 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
     AppHaptics.selection();
     setState(() => _selectedLanguage = lang);
     context.appSettings.setLanguage(lang);
+    LocalStorageService.saveLanguage(lang);
   }
 
   Future<void> _onContinue() async {
     AppHaptics.medium();
+    await LocalStorageService.saveLanguage(_selectedLanguage);
     await LocalStorageService.setSelectedLanguage(true);
     if (!mounted) return;
+    context.appSettings.setLanguage(_selectedLanguage);
 
     Navigator.of(context).pushReplacementNamed(AppRoutes.onboarding);
   }
@@ -111,7 +114,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
-                        vertical: 20,
+                        vertical: 16,
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -119,9 +122,9 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                           // Top & Content Area
                           Column(
                             children: [
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
 
-                              // Minimalist App Logo Badge
+                              // Minimalist App Logo Badge & Name
                               Container(
                                 width: 72,
                                 height: 72,
@@ -164,37 +167,89 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                                   ),
                                 ),
                               ),
+                              const SizedBox(height: 10),
+
+                              // App Name Badge: M-IT UNO
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: (isDark
+                                          ? AppColors.primaryAccent
+                                          : AppColors.primary)
+                                      .withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: (isDark
+                                            ? AppColors.primaryAccent
+                                            : AppColors.primary)
+                                        .withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                child: Text(
+                                  'M-IT UNO',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.8,
+                                    color: isDark
+                                        ? AppColors.primaryAccent
+                                        : AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+
+                              // Title with fixed vertical height to prevent UI jumps
+                              SizedBox(
+                                height: 34,
+                                child: Center(
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 200),
+                                    child: Text(
+                                      _getTitleText(_selectedLanguage),
+                                      key: ValueKey('title_${_selectedLanguage.name}'),
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 25,
+                                        fontWeight: FontWeight.w800,
+                                        color: isDark
+                                            ? AppColors.darkTextPrimary
+                                            : AppColors.textPrimary,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+
+                              // Subtitle with fixed vertical container (44px) so text length differences never jump the UI
+                              SizedBox(
+                                height: 44,
+                                child: Center(
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 200),
+                                    child: Text(
+                                      _getSubtitleText(_selectedLanguage),
+                                      key: ValueKey('sub_${_selectedLanguage.name}'),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w400,
+                                        color: isDark
+                                            ? AppColors.darkTextSecondary
+                                            : AppColors.textSecondary,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                               const SizedBox(height: 24),
-
-                              // Title
-                              Text(
-                                _getTitleText(_selectedLanguage),
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.w800,
-                                  color: isDark
-                                      ? AppColors.darkTextPrimary
-                                      : AppColors.textPrimary,
-                                  letterSpacing: -0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-
-                              // Subtitle
-                              Text(
-                                _getSubtitleText(_selectedLanguage),
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 14.5,
-                                  fontWeight: FontWeight.w400,
-                                  color: isDark
-                                      ? AppColors.darkTextSecondary
-                                      : AppColors.textSecondary,
-                                  height: 1.4,
-                                ),
-                              ),
-                              const SizedBox(height: 32),
 
                               // Language Cards List
                               ...languages.map((item) {
@@ -215,7 +270,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                           // Bottom Action Area
                           Column(
                             children: [
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 16),
 
                               // Continue CTA Button
                               SizedBox(
@@ -238,15 +293,19 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Text(
-                                        _getButtonText(_selectedLanguage),
-                                        style: TextStyle(
-                                          fontSize: 16.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: isDark
-                                              ? AppColors.primaryDark
-                                              : Colors.white,
-                                          letterSpacing: 0.1,
+                                      AnimatedSwitcher(
+                                        duration: const Duration(milliseconds: 200),
+                                        child: Text(
+                                          _getButtonText(_selectedLanguage),
+                                          key: ValueKey('btn_${_selectedLanguage.name}'),
+                                          style: TextStyle(
+                                            fontSize: 16.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: isDark
+                                                ? AppColors.primaryDark
+                                                : Colors.white,
+                                            letterSpacing: 0.1,
+                                          ),
                                         ),
                                       ),
                                       const SizedBox(width: 8),
@@ -261,20 +320,31 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 14),
+                              const SizedBox(height: 10),
 
-                              // Helpful Info Note
-                              Text(
-                                _getHintText(_selectedLanguage),
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  color: isDark
-                                      ? AppColors.darkTextMuted
-                                      : AppColors.textMuted,
+                              // Helpful Info Note with fixed height container (38px)
+                              SizedBox(
+                                height: 38,
+                                child: Center(
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 200),
+                                    child: Text(
+                                      _getHintText(_selectedLanguage),
+                                      key: ValueKey('hint_${_selectedLanguage.name}'),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isDark
+                                            ? AppColors.darkTextMuted
+                                            : AppColors.textMuted,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 4),
                             ],
                           ),
                         ],

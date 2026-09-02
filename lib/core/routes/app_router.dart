@@ -21,12 +21,16 @@ import 'package:m_it_student_platform/features/notifications/presentation/screen
 import 'package:m_it_student_platform/features/onboarding/presentation/screens/language_selection_screen.dart';
 import 'package:m_it_student_platform/features/onboarding/presentation/screens/onboarding_screen.dart';
 import 'package:m_it_student_platform/features/payments/presentation/screens/payments_screen.dart';
+import 'package:m_it_student_platform/features/profile/presentation/screens/privacy_policy_screen.dart';
 import 'package:m_it_student_platform/features/profile/presentation/screens/profile_screen.dart';
+import 'package:m_it_student_platform/features/profile/presentation/screens/terms_of_service_screen.dart';
 import 'package:m_it_student_platform/features/reviews/presentation/screens/review_screen.dart';
 import 'package:m_it_student_platform/features/splash/presentation/splash_screen.dart';
 
 class AppRouter {
   AppRouter._();
+
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -155,6 +159,18 @@ class AppRouter {
       case AppRoutes.complaint:
         return _buildPageRoute(
           const ComplaintScreen(),
+          settings,
+        );
+
+      case AppRoutes.privacyPolicy:
+        return _buildPageRoute(
+          const PrivacyPolicyScreen(),
+          settings,
+        );
+
+      case AppRoutes.termsOfService:
+        return _buildPageRoute(
+          const TermsOfServiceScreen(),
           settings,
         );
 

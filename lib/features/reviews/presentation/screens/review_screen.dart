@@ -206,8 +206,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                   );
                             },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                        backgroundColor: isDark ? AppColors.accentLime : AppColors.brandNavy,
+                        foregroundColor: isDark ? AppColors.brandNavy : Colors.white,
                         disabledBackgroundColor:
                             isDark ? AppColors.darkSurfaceTertiary : AppColors.surfaceTertiary,
                         shape: RoundedRectangleBorder(
@@ -216,12 +216,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
                         elevation: 0,
                       ),
                       child: state is ReviewsSubmitting
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 22,
                               height: 22,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.5,
-                                color: Colors.white,
+                                color: isDark ? AppColors.brandNavy : Colors.white,
                               ),
                             )
                           : Text(

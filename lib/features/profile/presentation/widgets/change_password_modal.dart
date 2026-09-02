@@ -125,12 +125,12 @@ class _ChangePasswordModalState extends State<ChangePasswordModal> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFD3FF32).withValues(alpha: 0.2),
+                    color: (isDark ? AppColors.accentLime : AppColors.brandNavy).withValues(alpha: isDark ? 0.2 : 0.1),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.lock_reset_rounded,
-                    color: Color(0xFFD3FF32),
+                    color: isDark ? AppColors.accentLime : AppColors.brandNavy,
                     size: 24,
                   ),
                 ),
@@ -193,35 +193,37 @@ class _ChangePasswordModalState extends State<ChangePasswordModal> {
             ),
             const SizedBox(height: 26),
 
-            // Save Button
+            // Submit Button
             SizedBox(
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD3FF32),
-                  foregroundColor: const Color(0xFF001E36),
+                  backgroundColor: isDark ? AppColors.accentLime : AppColors.brandNavy,
+                  foregroundColor: isDark ? const Color(0xFF001E36) : Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 child: _isLoading
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 22,
                         height: 22,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF001E36)),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            isDark ? const Color(0xFF001E36) : Colors.white,
+                          ),
                         ),
                       )
                     : Text(
                         context.tr('updatePasswordButton'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15.5,
                           fontWeight: FontWeight.w900,
-                          color: Color(0xFF001E36),
+                          color: isDark ? const Color(0xFF001E36) : Colors.white,
                         ),
                       ),
               ),

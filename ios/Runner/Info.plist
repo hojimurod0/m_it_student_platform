@@ -12,7 +12,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>M-IT ERP</string>
+	<string>M-IT UNO</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Uyga vazifa va ma'lumotnomalarni ilovaga yuklash uchun rasmlar galereyasiga kirish talab qilinadi.</string>
 	<key>NSCameraUsageDescription</key>
@@ -76,6 +76,15 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>http</string>
+		<string>payme</string>
+		<string>clickuz</string>
+		<string>uzumbank</string>
+		<string>tg</string>
 	</array>
 </dict>
 </plist>

@@ -34,8 +34,10 @@ class AttendanceLoaded extends AttendanceState {
   final List<AttendanceRecord> records;
 
   int get presentCount => records.where((r) => r.isPresent).length;
+  int get absentCount => records.where((r) => !r.isPresent).length;
   int get totalCount => records.length;
-  double get attendanceRate => totalCount > 0 ? presentCount / totalCount : 0.0;
+  double get attendanceRate => totalCount > 0 ? presentCount / totalCount : 1.0;
+  double get attendancePercentage => attendanceRate * 100;
 
   @override
   bool operator ==(Object other) =>

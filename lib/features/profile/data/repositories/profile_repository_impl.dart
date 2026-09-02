@@ -1,6 +1,8 @@
 import 'package:m_it_student_platform/core/network/api_client.dart';
 import 'package:m_it_student_platform/core/network/app_config.dart';
 import 'package:m_it_student_platform/core/storage/app_cache_service.dart';
+import 'package:m_it_student_platform/core/storage/local_storage_service.dart';
+import 'package:m_it_student_platform/core/storage/secure_storage_service.dart';
 import 'package:m_it_student_platform/features/lessons/domain/models/lesson_model.dart';
 import 'package:m_it_student_platform/features/profile/data/datasources/profile_remote_data_source.dart';
 import 'package:m_it_student_platform/features/profile/data/repositories/mock_profile_repository.dart';
@@ -26,13 +28,14 @@ class ProfileRepositoryImpl implements ProfileRepository {
     }
 
     try {
-      // Fetch all needed data in parallel — including progress API
+      // Fetch all needed data in parallel — including progress API & homeworks
       final results = await Future.wait([
         _remoteDataSource.fetchProfile(),
         _remoteDataSource.fetchGroups().catchError((_) => <dynamic>[]),
         _remoteDataSource.fetchGrades().catchError((_) => <dynamic>[]),
         _remoteDataSource.fetchAttendance().catchError((_) => <dynamic>[]),
         _remoteDataSource.fetchProgress().catchError((_) => <String, dynamic>{}),
+        _remoteDataSource.fetchHomeworks().catchError((_) => <dynamic>[]),
       ]);
 
       final data = Map<String, dynamic>.from(results[0] as Map<String, dynamic>);
@@ -67,20 +70,31 @@ class ProfileRepositoryImpl implements ProfileRepository {
       } else if (rawGroups is Map && rawGroups['results'] is List && (rawGroups['results'] as List).isNotEmpty) {
         final f = (rawGroups['results'] as List).first;
         if (f is Map) firstGroup = Map<String, dynamic>.from(f);
+      } else if (rawGroups is Map && rawGroups['groups'] is List && (rawGroups['groups'] as List).isNotEmpty) {
+        final f = (rawGroups['groups'] as List).first;
+        if (f is Map) firstGroup = Map<String, dynamic>.from(f);
+      } else if (rawGroups is Map && rawGroups['data'] is List && (rawGroups['data'] as List).isNotEmpty) {
+        final f = (rawGroups['data'] as List).first;
+        if (f is Map) firstGroup = Map<String, dynamic>.from(f);
+      } else if (rawGroups is Map<String, dynamic>) {
+        firstGroup = rawGroups;
       }
       if (firstGroup != null) {
         data['courseName'] = firstGroup['name']?.toString() ?? firstGroup['title']?.toString() ?? '';
         data['group'] = firstGroup['name']?.toString() ?? firstGroup['title']?.toString() ?? '';
         data['mentorName'] = firstGroup['teacher_name']?.toString() ?? firstGroup['mentor']?.toString() ?? '';
         final parsedRoom = resolveRoomString(
-          firstGroup['room'] ??
-              firstGroup['room_name'] ??
+          firstGroup['room_name'] ??
+              firstGroup['room'] ??
               firstGroup['classroom'] ??
               firstGroup['room_number'] ??
-              firstGroup['auditorium'],
+              firstGroup['auditorium'] ??
+              data['room_name'] ??
+              data['room'] ??
+              data['classroom'],
           firstGroup,
         );
-        data['room'] = parsedRoom.isNotEmpty ? parsedRoom : '3-xona';
+        data['room'] = parsedRoom.isNotEmpty ? parsedRoom : (firstGroup['room_name']?.toString() ?? 'Google xona');
         data['classDays'] = firstGroup['schedule_label']?.toString() ?? firstGroup['schedule']?.toString() ?? '';
         if (firstGroup['lesson_start'] != null && firstGroup['lesson_end'] != null) {
           data['classTime'] = "${firstGroup['lesson_start']} – ${firstGroup['lesson_end']}";
@@ -98,105 +112,89 @@ class ProfileRepositoryImpl implements ProfileRepository {
         }
       }
 
-      // ── 1. Calculate dynamic real Overall Score (O'zlashtirish) from live grades ──
+      // ── 1. Calculate dynamic real Overall Score (O'zlashtirish) from live grades & evaluated homeworks ──
       final rawGrades = results[2];
-      List<dynamic> gradeItems = [];
+      final rawHomeworks = results[5];
+      final List<double> evaluatedScores = [];
+
+      // Extract scores from /portal/student/my-grades/
       if (rawGrades is List) {
-        gradeItems = rawGrades;
-      } else if (rawGrades is Map) {
-        if (rawGrades['results'] is List) {
-          gradeItems = rawGrades['results'] as List;
-        } else if (rawGrades['grades'] is List) {
-          gradeItems = rawGrades['grades'] as List;
-        } else if (rawGrades['data'] is List) {
-          gradeItems = rawGrades['data'] as List;
-        } else if (rawGrades['average_score'] != null || rawGrades['gpa'] != null) {
-          final avg = (rawGrades['average_score'] as num?)?.toInt() ??
-              (rawGrades['gpa'] as num?)?.toInt();
-          if (avg != null) data['overallScore'] = avg;
-        }
-      }
-
-      if (gradeItems.isNotEmpty) {
-        double totalScorePercent = 0;
-        int gradedCount = 0;
-
-        for (final g in gradeItems) {
+        for (final g in rawGrades) {
           if (g is Map) {
-            final score = (g['score'] as num?)?.toDouble() ??
-                (g['grade'] as num?)?.toDouble() ??
-                (g['points'] as num?)?.toDouble() ??
-                (g['ball'] as num?)?.toDouble();
-            final maxScore = (g['max_score'] as num?)?.toDouble() ??
-                (g['total_score'] as num?)?.toDouble() ??
-                100.0;
-
-            if (score != null) {
-              if (maxScore > 0 && maxScore != 100.0) {
-                totalScorePercent += (score / maxScore) * 100.0;
-              } else {
-                totalScorePercent += score.clamp(0.0, 100.0);
-              }
-              gradedCount++;
+            final s = (g['score'] ?? g['grade'] ?? g['points'] ?? g['ball'] as num?)?.toDouble();
+            final max = (g['max_score'] ?? g['total_score'] as num?)?.toDouble() ?? 100.0;
+            if (s != null && s > 0) {
+              evaluatedScores.add(max > 0 && max != 100.0 ? (s / max * 100.0) : s.clamp(0.0, 100.0));
             }
           }
         }
-
-        if (gradedCount > 0) {
-          data['overallScore'] = (totalScorePercent / gradedCount).round().clamp(0, 100);
+      } else if (rawGrades is Map) {
+        if (rawGrades['average_score'] != null || rawGrades['gpa'] != null) {
+          final avg = (rawGrades['average_score'] as num?)?.toDouble() ??
+              (rawGrades['gpa'] as num?)?.toDouble();
+          if (avg != null && avg > 0) evaluatedScores.add(avg.clamp(0.0, 100.0));
         }
+      }
+
+      // Extract scores from /portal/student/my-homeworks/
+      List<dynamic> hwList = [];
+      if (rawHomeworks is List) {
+        hwList = rawHomeworks;
+      } else if (rawHomeworks is Map) {
+        if (rawHomeworks['homeworks'] is List) {
+          hwList = rawHomeworks['homeworks'] as List;
+        } else if (rawHomeworks['results'] is List) {
+          hwList = rawHomeworks['results'] as List;
+        } else if (rawHomeworks['data'] is List) {
+          hwList = rawHomeworks['data'] as List;
+        }
+      }
+
+      for (final hw in hwList) {
+        if (hw is Map) {
+          final mySub = hw['my_submission'];
+          final s = (mySub is Map ? (mySub['score'] as num?)?.toDouble() : null) ??
+              (hw['score'] as num?)?.toDouble();
+          final max = (hw['max_score'] as num?)?.toDouble() ?? 100.0;
+          if (s != null && s > 0) {
+            evaluatedScores.add(max > 0 && max != 100.0 ? (s / max * 100.0) : s.clamp(0.0, 100.0));
+          }
+        }
+      }
+
+      if (evaluatedScores.isNotEmpty) {
+        final avg = evaluatedScores.reduce((a, b) => a + b) / evaluatedScores.length;
+        data['overallScore'] = avg.round().clamp(0, 100);
       }
 
       // ── 2. Calculate dynamic real Attendance Rate (Davomat) from live attendance ──
       final rawAtt = results[3];
-      List<dynamic> attItems = [];
-      if (rawAtt is List) {
-        attItems = rawAtt;
-      } else if (rawAtt is Map) {
-        if (rawAtt['percentage'] != null || rawAtt['attendance_percentage'] != null || rawAtt['rate'] != null) {
-          final p = (rawAtt['percentage'] as num?)?.toInt() ??
-              (rawAtt['attendance_percentage'] as num?)?.toInt() ??
-              (rawAtt['rate'] as num?)?.toInt();
-          if (p != null) data['attendancePercentage'] = p;
-        }
+      if (rawAtt is Map) {
+        final pastLessons = (rawAtt['past_lessons_count'] as num?)?.toInt() ?? 0;
+        final attendedCount = (rawAtt['attended_count'] as num?)?.toInt() ?? 0;
+        final attPercent = (rawAtt['attendance_percentage'] as num?)?.toInt();
 
-        if (rawAtt['results'] is List) {
-          attItems = rawAtt['results'] as List;
-        } else if (rawAtt['attendance'] is List) {
-          attItems = rawAtt['attendance'] as List;
-        } else if (rawAtt['records'] is List) {
-          attItems = rawAtt['records'] as List;
-        } else if (rawAtt['days'] is List) {
-          attItems = rawAtt['days'] as List;
+        if (attPercent != null && attPercent > 0) {
+          data['attendancePercentage'] = attPercent.clamp(0, 100);
+        } else if (pastLessons > 0) {
+          data['attendancePercentage'] = ((attendedCount / pastLessons) * 100).round().clamp(0, 100);
+        } else {
+          // If no past lessons in current period, 100% clean attendance
+          data['attendancePercentage'] = 100;
         }
       }
 
-      if (attItems.isNotEmpty) {
-        int attendedDaysCount = 0;
-        int totalDaysCount = attItems.length;
-
-        for (final a in attItems) {
-          if (a is Map) {
-            final status = (a['status'] ?? a['attendance_status'] ?? a['note'] ?? '').toString().toLowerCase();
-            final isPresent = a['is_present'] == true ||
-                a['attended'] == true ||
-                a['present'] == true ||
-                status.contains('present') ||
-                status.contains('attended') ||
-                status.contains('kelgan') ||
-                status.contains('bor') ||
-                status.contains('ha') ||
-                (a['checkin'] != null && a['checkin'].toString().isNotEmpty && !status.contains('absent') && !status.contains('kelmagan'));
-
-            if (isPresent) {
-              attendedDaysCount++;
-            }
-          }
-        }
-
-        if (totalDaysCount > 0) {
-          data['attendancePercentage'] = ((attendedDaysCount / totalDaysCount) * 100).round().clamp(0, 100);
-        }
+      // ── 3. Merge real progress API data (/portal/student/progress/) ──
+      final rawProgress = results[4];
+      if (rawProgress is Map<String, dynamic>) {
+        if (rawProgress['coins'] != null) data['coins'] = (rawProgress['coins'] as num).toInt();
+        if (rawProgress['shartnoma_tangalari'] != null) data['coins'] = (rawProgress['shartnoma_tangalari'] as num).toInt();
+        if (rawProgress['homework_percent'] != null) data['homeworkPercent'] = (rawProgress['homework_percent'] as num).toInt();
+        if (rawProgress['homework_percentage'] != null) data['homeworkPercent'] = (rawProgress['homework_percentage'] as num).toInt();
+        if (rawProgress['overall_score'] != null && evaluatedScores.isEmpty) data['overallScore'] = (rawProgress['overall_score'] as num).toInt();
+        if (rawProgress['attendance_percentage'] != null) data['attendancePercentage'] = (rawProgress['attendance_percentage'] as num).toInt();
+        if (rawProgress['attendance_rate'] != null) data['attendancePercentage'] = (rawProgress['attendance_rate'] as num).toInt();
+        if (rawProgress['overall_progress_percentage'] != null && evaluatedScores.isEmpty) data['overallScore'] = (rawProgress['overall_progress_percentage'] as num).toInt();
       }
 
       final profile = StudentProfile.fromJson(data);
@@ -231,6 +229,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
   Future<StudentProfile> updateProfile({
     String? fullName,
     String? phone,
+    String? parentName,
     String? parentPhone,
     String? email,
     String? gender,
@@ -239,6 +238,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
     MockProfileRepository.updateProfile(
       fullName: fullName,
       phone: phone,
+      parentName: parentName,
       parentPhone: parentPhone,
       email: email,
       gender: gender,
@@ -262,6 +262,10 @@ class ProfileRepositoryImpl implements ProfileRepository {
             'phone': phone.trim(),
             'phone_number': phone.trim(),
           },
+          if (parentName != null && parentName.trim().isNotEmpty) ...{
+            'parent_name': parentName.trim(),
+            'parents_name': parentName.trim(),
+          },
           if (parentPhone != null && parentPhone.trim().isNotEmpty) ...{
             'parent_phone': parentPhone.trim(),
             'parents_phone': parentPhone.trim(),
@@ -276,6 +280,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
           MockProfileRepository.updateProfile(
             fullName: updated.fullName.isNotEmpty ? updated.fullName : fullName,
             phone: updated.phone.isNotEmpty ? updated.phone : phone,
+            parentName: updated.parentName.isNotEmpty ? updated.parentName : parentName,
             parentPhone: updated.parentPhone.isNotEmpty
                 ? updated.parentPhone
                 : parentPhone,
@@ -370,5 +375,28 @@ class ProfileRepositoryImpl implements ProfileRepository {
     }
 
     return const [];
+  }
+
+  @override
+  Future<void> deleteAccount({String password = '', String? reason}) async {
+    if (AppConfig.useMockData) {
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+      await AppCacheService.clearAll();
+      await LocalStorageService.clearAuth();
+      await SecureStorageService.clearAll();
+      MockProfileRepository.reset();
+      return;
+    }
+
+    try {
+      await _remoteDataSource.deleteProfile(password: password, reason: reason);
+    } catch (e) {
+      if (e is NetworkException) rethrow;
+    } finally {
+      await AppCacheService.clearAll();
+      await LocalStorageService.clearAuth();
+      await SecureStorageService.clearAll();
+      MockProfileRepository.reset();
+    }
   }
 }

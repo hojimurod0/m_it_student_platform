@@ -78,6 +78,25 @@ class AppConfig {
   static const String postComplaint = portalStudentComplaints;
   static const String studentComplaints = portalStudentComplaints;
 
+  // ─── 7. Legal & Compliance ────────────────────────────────────────────────
+  static const String portalLegalPrivacyPolicy = '/portal/legal/privacy-policy/';
+  static const String portalLegalTermsOfService = '/portal/legal/terms-of-service/';
+
+  static const String privacyPolicyUrl =
+      'https://m-it-academy.jarvisx.uz/legal/privacy-policy/?lang=uz';
+  static const String termsOfServiceUrl =
+      'https://m-it-academy.jarvisx.uz/legal/terms-of-service/?lang=uz';
+
+  static String getPrivacyPolicyUrl([String? lang]) {
+    final l = (lang == 'ru' || lang == 'en') ? lang : 'uz';
+    return 'https://m-it-academy.jarvisx.uz/legal/privacy-policy/?lang=$l';
+  }
+
+  static String getTermsOfServiceUrl([String? lang]) {
+    final l = (lang == 'ru' || lang == 'en') ? lang : 'uz';
+    return 'https://m-it-academy.jarvisx.uz/legal/terms-of-service/?lang=$l';
+  }
+
   // ─── Aliases for Backward Compatibility ──────────────────────────────────
   static const String portalGroups = portalStudentGroups;
   static const String portalSchedule = portalStudentSchedule;

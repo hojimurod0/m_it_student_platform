@@ -26,14 +26,57 @@ class GradesRemoteDataSourceImpl implements GradesRemoteDataSource {
         rawList = response['grades'] as List;
       } else if (response is Map && response['data'] is List) {
         rawList = response['data'] as List;
-      } else {
-        throw const ParseException('Kutilmagan baholar formati');
       }
 
-      return rawList
+      List<GradeItemModel> grades = rawList
           .whereType<Map>()
           .map((item) => GradeItemModel.fromJson(Map<String, dynamic>.from(item)))
           .toList();
+
+      // Extract real evaluated homeworks from /portal/student/my-homeworks/
+      try {
+        final hwResponse = await _apiClient.get(AppConfig.portalStudentHomeworks);
+        List<dynamic> hwList = [];
+        if (hwResponse is List) {
+          hwList = hwResponse;
+        } else if (hwResponse is Map && hwResponse['homeworks'] is List) {
+          hwList = hwResponse['homeworks'] as List;
+        } else if (hwResponse is Map && hwResponse['results'] is List) {
+          hwList = hwResponse['results'] as List;
+        }
+
+        for (final hw in hwList) {
+          if (hw is Map) {
+            final mySub = hw['my_submission'];
+            final s = (mySub is Map ? (mySub['score'] as num?)?.toInt() : null) ??
+                (hw['score'] as num?)?.toInt();
+            if (s != null && s > 0) {
+              final title = hw['lesson_title']?.toString() ??
+                  hw['title']?.toString() ??
+                  'Uyga vazifa';
+              final alreadyAdded = grades.any((g) => g.id == hw['id'].toString() || g.lessonTitle == title);
+              if (!alreadyAdded) {
+                grades.add(
+                  GradeItemModel(
+                    id: (hw['id'] ?? '').toString(),
+                    lessonTitle: title,
+                    score: s,
+                    maxScore: (hw['max_score'] as num?)?.toInt() ?? 100,
+                    date: (mySub is Map ? mySub['submitted_at']?.toString() : null) ??
+                        hw['created_at']?.toString() ??
+                        '',
+                    coins: (s / 10).round(),
+                    mentorComment: mySub is Map ? mySub['comment']?.toString() : null,
+                    groupName: hw['group_name']?.toString(),
+                  ),
+                );
+              }
+            }
+          }
+        }
+      } catch (_) {}
+
+      return grades;
     } on ApiException catch (e) {
       if (e.statusCode == 401) throw UnauthorizedException(e.message, e);
       if (e.statusCode == 403) throw ForbiddenException(e.message, e);

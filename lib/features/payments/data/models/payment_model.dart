@@ -176,7 +176,8 @@ class PaymentTransactionModel {
     final sanitized = Map<String, dynamic>.from(json);
     sanitized['id'] = (json['id'] ?? '').toString();
     sanitized['transaction_number'] = json['transaction_number']?.toString() ?? 'TRX-${sanitized['id']}';
-    sanitized['amount'] = (json['amount'] as num?)?.toDouble() ?? 0.0;
+    final rawAmount = json['amount'] ?? json['price'] ?? json['paid_amount'] ?? json['monthly_fee'] ?? json['fee'];
+    sanitized['amount'] = _parseAmount(rawAmount);
     sanitized['date'] = json['paid_date']?.toString() ?? json['created_at']?.toString() ?? json['date']?.toString() ?? '';
     sanitized['time'] = json['time']?.toString() ?? (json['created_at'] != null && json['created_at'].toString().length >= 16 ? json['created_at'].toString().substring(11, 16) : '18:00');
     sanitized['title'] = json['payment_type_label']?.toString() ?? json['group_name']?.toString() ?? json['title']?.toString() ?? 'Oylik to\'lov';
@@ -251,4 +252,14 @@ class PaymentTransactionModel {
         receiptNumber: entity.receiptNumber,
         note: entity.note,
       );
+}
+
+double _parseAmount(dynamic val) {
+  if (val == null) return 0.0;
+  if (val is num) return val.toDouble();
+  if (val is String) {
+    final clean = val.replaceAll(RegExp(r'[^\d.]'), '');
+    return double.tryParse(clean) ?? 0.0;
+  }
+  return 0.0;
 }

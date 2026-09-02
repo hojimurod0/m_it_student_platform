@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
-import 'package:m_it_student_platform/core/di/injection_container.dart';
-import 'package:m_it_student_platform/core/localization/app_strings.dart';
-import 'package:m_it_student_platform/core/network/api_client.dart';
 import 'package:m_it_student_platform/core/utils/haptics.dart';
 import 'package:m_it_student_platform/core/widgets/ui/mit_toast.dart';
-import 'package:m_it_student_platform/features/homework/data/datasources/homework_remote_data_source.dart';
 import 'package:m_it_student_platform/features/homework/data/repositories/homework_repository.dart';
 
-/// Submit Homework Modal with GitHub Link, File Upload & Comment support
+/// Minimalist, Clean & Direct Submit Homework Modal
 class SubmitHomeworkModal extends StatefulWidget {
   const SubmitHomeworkModal({
     super.key,
@@ -41,15 +37,13 @@ class SubmitHomeworkModal extends StatefulWidget {
 }
 
 class _SubmitHomeworkModalState extends State<SubmitHomeworkModal> {
-  final _githubController = TextEditingController();
-  final _commentController = TextEditingController();
+  final _textController = TextEditingController();
   PlatformFile? _pickedFile;
   bool _isSubmitting = false;
 
   @override
   void dispose() {
-    _githubController.dispose();
-    _commentController.dispose();
+    _textController.dispose();
     super.dispose();
   }
 
@@ -65,7 +59,7 @@ class _SubmitHomeworkModalState extends State<SubmitHomeworkModal> {
         setState(() => _pickedFile = result.files.first);
         AppHaptics.light();
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         MitToast.error(context, 'Fayl tanlashda xatolik yuz berdi');
       }
@@ -73,142 +67,39 @@ class _SubmitHomeworkModalState extends State<SubmitHomeworkModal> {
   }
 
   void _submit() async {
-    final githubUrl = _githubController.text.trim();
-    final comment = _commentController.text.trim();
+    final textInput = _textController.text.trim();
 
-    if (githubUrl.isEmpty && _pickedFile == null && comment.isEmpty) {
-      MitToast.error(context, context.tr('homeworkRequiredError'));
+    if (_pickedFile == null && textInput.isEmpty) {
+      MitToast.error(context, 'Fayl yuklang yoki izoh/havola kiriting');
       return;
     }
 
-    String effectiveGithubUrl = githubUrl;
-    if (effectiveGithubUrl.isNotEmpty) {
-      if (!effectiveGithubUrl.startsWith('http://') && !effectiveGithubUrl.startsWith('https://')) {
-        if (effectiveGithubUrl.contains('.') && !effectiveGithubUrl.contains(' ')) {
-          effectiveGithubUrl = 'https://$effectiveGithubUrl';
-        }
-      }
-    }
-
-    setState(() {
-      _isSubmitting = true;
-    });
+    setState(() => _isSubmitting = true);
     AppHaptics.medium();
 
     try {
-      final remoteSource = sl.isRegistered<HomeworkRemoteDataSource>()
-          ? sl<HomeworkRemoteDataSource>()
-          : HomeworkRemoteDataSourceImpl(apiClient: sl.isRegistered<ApiClient>() ? sl<ApiClient>() : ApiClient());
-
-      await remoteSource.submitHomework(
-        homeworkId: widget.homeworkId,
-        text: comment.isNotEmpty ? comment : (effectiveGithubUrl.isNotEmpty ? effectiveGithubUrl : (_pickedFile != null ? 'Fayl: ${_pickedFile!.name}' : 'Topshirildi')),
-        githubUrl: effectiveGithubUrl.isNotEmpty ? effectiveGithubUrl : null,
-        comment: comment.isNotEmpty ? comment : null,
-        filePath: _pickedFile?.path,
-        fileBytes: _pickedFile?.bytes,
-        fileName: _pickedFile?.name,
-      );
-
-      final finalUrl = effectiveGithubUrl.isNotEmpty
-          ? effectiveGithubUrl
-          : (_pickedFile != null
-              ? _pickedFile!.name
-              : (comment.isNotEmpty ? comment : 'Topshirildi'));
-
       await HomeworkRepository.instance.submitHomework(
         widget.homeworkId,
-        finalUrl,
-        comment: comment,
+        textInput.isNotEmpty ? textInput : (_pickedFile?.name ?? 'Topshirildi'),
+        title: widget.homeworkTitle,
+        comment: textInput.isNotEmpty ? textInput : null,
         filePath: _pickedFile?.path,
         fileBytes: _pickedFile?.bytes,
         fileName: _pickedFile?.name,
       );
 
       if (!mounted) return;
-
-      setState(() {
-        _isSubmitting = false;
-      });
+      setState(() => _isSubmitting = false);
       Navigator.of(context).pop();
 
-      MitToast.success(context, context.tr('homeworkSubmitted'));
+      MitToast.success(context, 'Vazifa topshirildi!');
     } catch (e) {
-      // Fallback for seamless UX
-      final finalUrl = effectiveGithubUrl.isNotEmpty
-          ? effectiveGithubUrl
-          : (_pickedFile != null
-              ? _pickedFile!.name
-              : (comment.isNotEmpty ? comment : 'Topshirildi'));
-
-      await HomeworkRepository.instance.submitHomework(
-        widget.homeworkId,
-        finalUrl,
-        comment: comment,
-        filePath: _pickedFile?.path,
-        fileBytes: _pickedFile?.bytes,
-        fileName: _pickedFile?.name,
-      );
-
       if (!mounted) return;
-      setState(() {
-        _isSubmitting = false;
-      });
-      Navigator.of(context).pop();
-      MitToast.success(context, context.tr('homeworkSubmitted'));
-    }
-  }
-
-  IconData _getFileIcon(String ext) {
-    switch (ext.toLowerCase()) {
-      case 'zip':
-      case 'rar':
-      case '7z':
-      case 'tar':
-      case 'gz':
-        return Icons.folder_zip_rounded;
-      case 'pdf':
-        return Icons.picture_as_pdf_rounded;
-      case 'dart':
-      case 'py':
-      case 'js':
-      case 'ts':
-      case 'sql':
-      case 'json':
-      case 'html':
-      case 'css':
-        return Icons.code_rounded;
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'webp':
-      case 'heic':
-        return Icons.image_rounded;
-      default:
-        return Icons.insert_drive_file_rounded;
-    }
-  }
-
-  Color _getFileColor(String ext) {
-    switch (ext.toLowerCase()) {
-      case 'zip':
-      case 'rar':
-      case '7z':
-        return const Color(0xFFF59E0B);
-      case 'pdf':
-        return const Color(0xFFEF4444);
-      case 'dart':
-      case 'py':
-      case 'js':
-      case 'ts':
-      case 'sql':
-        return const Color(0xFF06B6D4);
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-        return const Color(0xFFA855F7);
-      default:
-        return const Color(0xFF10B981);
+      setState(() => _isSubmitting = false);
+      MitToast.error(
+        context,
+        'Vazifani yuborishda xatolik yuz berdi. Iltimos qayta urinib ko\'ring.',
+      );
     }
   }
 
@@ -223,295 +114,255 @@ class _SubmitHomeworkModalState extends State<SubmitHomeworkModal> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    final sheetBg = isDark ? const Color(0xFF0F172A) : Colors.white;
+    final cardBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: Container(
-        height: MediaQuery.of(context).size.height * 0.82,
         decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurface : Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          color: sheetBg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: borderColor),
         ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Drag Handle
-            Container(
-              margin: const EdgeInsets.only(top: 12, bottom: 8),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(2),
+            // ── Drag Handle ──
+            Center(
+              child: Container(
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
+            const SizedBox(height: 14),
 
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFD3FF32).withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: const Icon(
-                            Icons.cloud_upload_rounded,
-                            color: Color(0xFF84CC16),
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                context.tr('submitHomework'),
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                widget.homeworkTitle,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isDark ? Colors.grey.shade400 : AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-
-            // Form content
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                children: [
-                  // 1. File Upload Drop Zone (Primary)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            // ── Header Title & Close ──
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Fayl yuklash (ZIP, PDF, Kod, Rasm)',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                      ),
-                      if (_pickedFile != null)
-                        GestureDetector(
-                          onTap: _pickFile,
-                          child: Text(
-                            'Almashtirish',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: isDark ? AppColors.accentLime : AppColors.primary,
-                            ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: (isDark ? AppColors.accentLime : AppColors.brandNavy).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'UYGA VAZIFA',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.6,
+                            color: isDark ? AppColors.accentLime : AppColors.brandNavy,
                           ),
                         ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        widget.homeworkTitle.isNotEmpty ? widget.homeworkTitle : 'Vazifani topshirish',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w900,
+                          color: textColor,
+                          height: 1.25,
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(Icons.close_rounded, color: subtitleColor, size: 22),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
 
-                  if (_pickedFile == null)
-                    GestureDetector(
-                      onTap: _pickFile,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.darkSurfaceSecondary : const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: (isDark ? AppColors.accentLime : AppColors.primary).withValues(alpha: 0.12),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.file_present_rounded,
-                                size: 32,
-                                color: isDark ? AppColors.accentLime : AppColors.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            const Text(
-                              'Faylni tanlash uchun bosing',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '.zip, .rar, .pdf, .dart, .py, .sql, rasm va boshqalar',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: isDark ? Colors.grey.shade400 : AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
+            // ── Fayl yuklash ──
+            Text(
+              'Fayl biriktirish',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: textColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            if (_pickedFile == null)
+              InkWell(
+                onTap: _pickFile,
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: borderColor, width: 1.2),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.cloud_upload_rounded,
+                        size: 28,
+                        color: isDark ? AppColors.accentLime : AppColors.brandNavy,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Faylni tanlash',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
                         ),
                       ),
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkSurfaceSecondary : const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: _getFileColor(_pickedFile!.extension ?? '').withValues(alpha: 0.5),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Row(
+                    ],
+                  ),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: (isDark ? AppColors.accentLime : AppColors.primary).withValues(alpha: 0.6),
+                    width: 1.2,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.insert_drive_file_rounded,
+                      color: isDark ? AppColors.accentLime : AppColors.primary,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: _getFileColor(_pickedFile!.extension ?? '').withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              _getFileIcon(_pickedFile!.extension ?? ''),
-                              color: _getFileColor(_pickedFile!.extension ?? ''),
-                              size: 26,
+                          Text(
+                            _pickedFile!.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: textColor,
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _pickedFile!.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _formatFileSize(_pickedFile!.size),
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    color: isDark ? Colors.grey.shade400 : AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
+                          Text(
+                            _formatFileSize(_pickedFile!.size),
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: subtitleColor,
                             ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 22),
-                            onPressed: () {
-                              AppHaptics.light();
-                              setState(() => _pickedFile = null);
-                            },
                           ),
                         ],
                       ),
                     ),
+                    IconButton(
+                      icon: const Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 20),
+                      onPressed: () {
+                        AppHaptics.light();
+                        setState(() => _pickedFile = null);
+                      },
+                    ),
+                  ],
+                ),
+              ),
 
-                  const SizedBox(height: 20),
+            const SizedBox(height: 14),
 
-                  // 2. GitHub or External Link
-                  Text(
-                    '${context.tr('githubRepoLink')} (ixtiyoriy)',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+            // ── Izoh yoki Havola ──
+            Text(
+              'Izoh yoki havola',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: textColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _textController,
+              maxLines: 2,
+              style: TextStyle(fontSize: 13.5, color: textColor),
+              decoration: InputDecoration(
+                hintText: 'GitHub havolasi yoki ustoz uchun izoh...',
+                hintStyle: TextStyle(
+                  fontSize: 12.5,
+                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                ),
+                filled: true,
+                fillColor: cardBg,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: borderColor),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: borderColor),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: isDark ? AppColors.accentLime : AppColors.brandNavy,
+                    width: 1.5,
                   ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _githubController,
-                    decoration: InputDecoration(
-                      hintText: 'https://github.com/username/project',
-                      prefixIcon: const Icon(Icons.link_rounded),
-                      filled: true,
-                      fillColor: isDark ? AppColors.darkSurfaceSecondary : AppColors.surfaceSecondary,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // ── Topshirish Tugmasi ──
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: _isSubmitting ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isDark ? AppColors.accentLime : AppColors.brandNavy,
+                  foregroundColor: isDark ? Colors.black : Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: _isSubmitting
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: isDark ? Colors.black : Colors.white,
+                          strokeWidth: 2.2,
+                        ),
+                      )
+                    : const Text(
+                        'Topshirish',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
                       ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  // 3. Comment / Explanation text
-                  Text(
-                    '${context.tr('commentForMentor')} (ixtiyoriy)',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _commentController,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText: context.tr('commentHint'),
-                      filled: true,
-                      fillColor: isDark ? AppColors.darkSurfaceSecondary : AppColors.surfaceSecondary,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Submit Button
-                  ElevatedButton(
-                    onPressed: _isSubmitting ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD3FF32),
-                      foregroundColor: const Color(0xFF001E36),
-                      minimumSize: const Size(double.infinity, 52),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 0,
-                    ),
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              color: Color(0xFF001E36),
-                              strokeWidth: 2.4,
-                            ),
-                          )
-                        : Text(
-                            context.tr('submitHomework'),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF001E36),
-                            ),
-                          ),
-                  ),
-                ],
               ),
             ),
           ],

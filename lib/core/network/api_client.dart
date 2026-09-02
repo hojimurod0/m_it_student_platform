@@ -36,6 +36,9 @@ class ApiClient {
   final String _baseUrl;
   String? _authToken;
 
+  /// Global callback invoked when 401 Unauthorized occurs and refresh fails
+  static void Function()? onUnauthorized;
+
   // Mutex for handling concurrent 401s without multiple refresh loops
   static Completer<bool>? _refreshCompleter;
 
@@ -43,6 +46,8 @@ class ApiClient {
     _authToken = token;
     if (token != null && token.isNotEmpty) {
       LocalStorageService.saveAuthToken(token);
+    } else {
+      LocalStorageService.clearAuth();
     }
   }
 
@@ -376,6 +381,9 @@ class ApiClient {
     }
 
     if (statusCode == 401) {
+      _authToken = null;
+      LocalStorageService.clearAuth();
+      onUnauthorized?.call();
       final errorMsg = _extractErrorMessage(decodedBody, defaultMsg: 'Sessiya muddati tugagan. Qaytadan kiring');
       throw UnauthorizedException(errorMsg);
     }

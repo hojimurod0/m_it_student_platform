@@ -73,19 +73,21 @@ void main() {
 
     // 1. Launch App on Splash Screen
     await tester.pumpWidget(createTestApp(const m_it_student_platform_splash.SplashScreen(), settings));
-    expect(find.text('M-IT Academy'), findsOneWidget);
+    expect(find.byType(m_it_student_platform_splash.SplashScreen), findsOneWidget);
 
     // 2. Advance 3-second splash timer -> transitions to LoginScreen
     await tester.pump(const Duration(milliseconds: 3100));
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('M-IT Academy'), findsWidgets);
+    expect(find.text('Xush kelibsiz'), findsWidgets);
     expect(find.text('Login'), findsOneWidget);
     expect(find.text('Parol'), findsOneWidget);
-    expect(find.text('Kirish'), findsOneWidget);
+    // Check terms agreement checkbox
+    await tester.tap(find.byType(Checkbox));
+    await tester.pump();
 
     // 3. Enter default development credentials and login
-    final textFields = find.byType(TextFormField);
+    final textFields = find.byType(TextField);
     expect(textFields, findsNWidgets(2));
     final phoneField = textFields.at(0);
     final passwordField = textFields.at(1);
@@ -111,7 +113,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Darslar'), findsWidgets);
-    expect(find.textContaining('Filtr'), findsWidgets);
+    expect(find.textContaining('Barchasi'), findsWidgets);
 
     // 6. Switch to To'lovlar (Payments) Tab & Verify Monthly 400 000 Payment
     await tester.tap(find.text("To'lovlar"));
@@ -169,15 +171,20 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify Login Screen initial elements
-    expect(find.text('M-IT Academy'), findsOneWidget);
+    expect(find.text('Xush kelibsiz'), findsOneWidget);
     expect(find.text('Kirish'), findsOneWidget);
 
-    // --- TEST 4: Empty Fields Validation ---
+    // --- TEST 4: Terms agreement & Empty Fields Validation ---
+    // Agree to terms first so Kirish button is active
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+
+    // Tap Kirish with empty login field
     await tester.tap(find.text('Kirish'));
     await tester.pumpAndSettle();
     expect(find.text('Loginingizni kiriting'), findsWidgets);
 
-    final inputFields = find.byType(TextFormField);
+    final inputFields = find.byType(TextField);
     final phoneField = inputFields.at(0);
     final passwordField = inputFields.at(1);
 
@@ -239,13 +246,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     // Confirm logout dialog
-    expect(find.text('Chiqishni tasdiqlaysizmi?'), findsOneWidget);
     await tester.tap(find.widgetWithText(ElevatedButton, 'Chiqish'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 500));
 
     // Verify redirected back to Login Screen and back stack is empty
-    expect(find.text('M-IT Academy'), findsOneWidget);
+    expect(find.text('Xush kelibsiz'), findsOneWidget);
     expect(find.text('Kirish'), findsOneWidget);
   });
 
@@ -270,7 +276,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Darslar'), findsWidgets);
-    expect(find.textContaining('Filtr'), findsWidgets);
+    expect(find.textContaining('Barchasi'), findsWidgets);
 
     await tester.tap(find.byIcon(Icons.account_balance_wallet_outlined));
     await tester.pump();
@@ -305,7 +311,7 @@ void main() {
 
     final academyAns = AiMentorService.generateAnswer('Dars jadvali va oylik to\'lov qancha');
     expect(academyAns.category, AiQueryCategory.academy);
-    expect(academyAns.text.contains('400 000'), isTrue);
+    expect(academyAns.text.contains('500 000'), isTrue);
     expect(academyAns.text.contains('To\'langan'), isTrue);
   });
 

@@ -94,13 +94,19 @@ class AppCacheService {
       keyPayments,
       keyPaymentSummary,
       keyHomeworks,
+      keyGroups,
       keyProfile,
+      keyGrades,
+      keyAttendance,
       keyLastSync,
     ];
     for (final k in keys) {
       await clearKey(k);
     }
   }
+
+  /// Alias for clearAllCache
+  static Future<void> clearAll() => clearAllCache();
 
   /// Get last sync date time
   static DateTime? getLastSyncTime() {

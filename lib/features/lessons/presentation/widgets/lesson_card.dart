@@ -210,7 +210,7 @@ class LessonCard extends StatelessWidget {
                             const SizedBox(width: 8),
                             Flexible(
                               child: Text(
-                                '•  ${lesson.scheduleDays}',
+                                '•  ${context.formatScheduleDays(lesson.scheduleDays)}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -222,7 +222,7 @@ class LessonCard extends StatelessWidget {
                           ] else if (lesson.scheduleDays.isNotEmpty)
                             Flexible(
                               child: Text(
-                                lesson.scheduleDays,
+                                context.formatScheduleDays(lesson.scheduleDays),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(

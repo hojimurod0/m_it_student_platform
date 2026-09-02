@@ -71,12 +71,12 @@ class _QrAttendanceScannerModalState extends State<QrAttendanceScannerModal> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.15),
+                        color: (isDark ? AppColors.accentLime : AppColors.brandNavy).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.qr_code_scanner_rounded,
-                        color: AppColors.primary,
+                        color: isDark ? AppColors.accentLime : AppColors.brandNavy,
                         size: 24,
                       ),
                     ),
@@ -120,9 +120,9 @@ class _QrAttendanceScannerModalState extends State<QrAttendanceScannerModal> {
                   if (_isSuccess) ...[
                     Container(
                       padding: const EdgeInsets.all(20),
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Color(0xFFDCFCE7),
+                        color: AppColors.success.withValues(alpha: isDark ? 0.25 : 0.15),
                       ),
                       child: const Icon(
                         Icons.check_circle_rounded,
@@ -149,8 +149,8 @@ class _QrAttendanceScannerModalState extends State<QrAttendanceScannerModal> {
                     ElevatedButton(
                       onPressed: () => Navigator.of(context).pop(),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                        backgroundColor: isDark ? AppColors.accentLime : AppColors.brandNavy,
+                        foregroundColor: isDark ? AppColors.brandNavy : Colors.white,
                         minimumSize: const Size(double.infinity, 50),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
@@ -165,7 +165,9 @@ class _QrAttendanceScannerModalState extends State<QrAttendanceScannerModal> {
                         color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.05),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: _isScanning ? AppColors.accentLime : AppColors.primary,
+                          color: _isScanning
+                              ? AppColors.accentLime
+                              : (isDark ? AppColors.accentLime : AppColors.brandNavy),
                           width: 2.5,
                         ),
                       ),
@@ -197,8 +199,8 @@ class _QrAttendanceScannerModalState extends State<QrAttendanceScannerModal> {
                       icon: const Icon(Icons.camera_alt_rounded),
                       label: Text(context.tr('scanQr')),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                        backgroundColor: isDark ? AppColors.accentLime : AppColors.brandNavy,
+                        foregroundColor: isDark ? AppColors.brandNavy : Colors.white,
                         minimumSize: const Size(double.infinity, 50),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),

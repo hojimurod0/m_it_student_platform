@@ -3,6 +3,7 @@ import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
 import 'package:m_it_student_platform/core/services/reminder_service.dart';
 import 'package:m_it_student_platform/features/lessons/domain/models/lesson_model.dart';
+import 'package:m_it_student_platform/features/profile/data/repositories/mock_profile_repository.dart';
 
 class FeaturedClassCard extends StatefulWidget {
   const FeaturedClassCard({
@@ -148,7 +149,7 @@ class _FeaturedClassCardState extends State<FeaturedClassCard> {
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  lesson.scheduleDays,
+                                  context.formatScheduleDays(lesson.scheduleDays),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 11.5,
@@ -326,7 +327,9 @@ class _FeaturedClassCardState extends State<FeaturedClassCard> {
                               child: Text(
                                 lesson.room.isNotEmpty
                                     ? lesson.room
-                                    : '3-xona',
+                                    : (MockProfileRepository.currentStudent.room.isNotEmpty
+                                        ? MockProfileRepository.currentStudent.room
+                                        : '204-kompyuter xonasi'),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(

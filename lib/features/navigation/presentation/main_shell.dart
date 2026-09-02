@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
@@ -17,10 +20,64 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int _currentIndex = 0;
-  final bool _isOffline = false;
+  bool _isOffline = false;
   DateTime? _lastBackPressTime;
+  Timer? _connectivityTimer;
+
+  static bool get _isTestEnvironment {
+    try {
+      return !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    if (!_isTestEnvironment) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkConnectivity();
+      });
+      _connectivityTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+        _checkConnectivity();
+      });
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkConnectivity();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _connectivityTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _checkConnectivity() async {
+    if (kIsWeb) return;
+    try {
+      final result = await InternetAddress.lookup('google.com')
+          .timeout(const Duration(seconds: 3));
+      final online = result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+      if (mounted && _isOffline != !online) {
+        setState(() => _isOffline = !online);
+      }
+    } catch (_) {
+      // In test environments or offline state, update gracefully
+      if (mounted && !_isOffline) {
+        setState(() => _isOffline = true);
+      }
+    }
+  }
 
   void _onTabSelected(int index) {
     if (_currentIndex == index) return;
@@ -57,8 +114,13 @@ class _MainShellState extends State<MainShell> {
           children: [
             NetworkStatusBanner(
               isOffline: _isOffline,
-              onRetry: () {
+              onRetry: () async {
                 AppHaptics.light();
+                await _checkConnectivity();
+                if (!context.mounted) return;
+                if (!_isOffline) {
+                  MitToast.success(context, 'Internetga ulandi');
+                }
               },
             ),
             Expanded(

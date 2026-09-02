@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/di/injection_container.dart';
 import 'package:m_it_student_platform/core/utils/haptics.dart';
 import 'package:m_it_student_platform/core/widgets/ui/mit_toast.dart';
@@ -97,13 +98,14 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFD3FF32).withValues(alpha: 0.18),
+                            color: (isDark ? const Color(0xFFD3FF32) : AppColors.brandNavy)
+                                .withValues(alpha: isDark ? 0.2 : 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.edit_note_rounded,
                             size: 22,
-                            color: Color(0xFFD3FF32),
+                            color: isDark ? const Color(0xFFD3FF32) : AppColors.brandNavy,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -205,33 +207,37 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
                                   );
                             },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFD3FF32),
-                        foregroundColor: const Color(0xFF001E36),
+                        backgroundColor: isDark ? const Color(0xFFD3FF32) : AppColors.brandNavy,
+                        foregroundColor: isDark ? const Color(0xFF001E36) : Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
                         elevation: 0,
                       ),
                       child: state is ComplaintsSubmitting
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 22,
                               height: 22,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.5,
-                                color: Color(0xFF001E36),
+                                color: isDark ? const Color(0xFF001E36) : Colors.white,
                               ),
                             )
-                          : const Row(
+                          : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.send_rounded, size: 19, color: Color(0xFF001E36)),
-                                SizedBox(width: 8),
+                                Icon(
+                                  Icons.send_rounded,
+                                  size: 19,
+                                  color: isDark ? const Color(0xFF001E36) : Colors.white,
+                                ),
+                                const SizedBox(width: 8),
                                 Text(
                                   'Arizani yuborish',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w900,
                                     fontSize: 16,
-                                    color: Color(0xFF001E36),
+                                    color: isDark ? const Color(0xFF001E36) : Colors.white,
                                   ),
                                 ),
                               ],

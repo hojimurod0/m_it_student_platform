@@ -318,7 +318,7 @@ class AiMentorService {
             '📅 **Dars kunlari**: Seshanba - Payshanba - Shanba (14:00 - 16:00)\n'
             '🏢 **O\'quv xonasi**: 204-kompyuter laboratoriyasi\n\n'
             '💳 **To\'lov ma\'lumoti**:\n'
-            '• Oylik to\'lov miqdori: **400 000 so\'m**\n'
+            '• Oylik to\'lov miqdori: **500 000 so\'m**\n'
             '• To\'lov holati: **To\'langan** (Joriy oy uchun qabul qilingan)\n'
             '• Keyingi to\'lov muddati: **1-Sentyabr, 2026**\n\n'
             '📝 **Uy vazifalari**: Ilovaning "Uy vazifalari" bo\'limidan GitHub repozitoriy havolangizni yuborishingiz mumkin!',

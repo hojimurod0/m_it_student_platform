@@ -25,6 +25,7 @@ class MockProfileRepository {
     id: 'ST-10245',
     fullName: 'John Smith',
     phone: '+998 90 123 45 67',
+    parentName: 'Ota-onasi',
     parentPhone: '+998 99 876 54 32',
     email: 'john.smith@mit-academy.uz',
     courseName: 'Flutter Mobile Development',
@@ -32,7 +33,7 @@ class MockProfileRepository {
     mentorName: 'Abbos Qodirov',
     classTime: '14:00 – 16:00',
     classDays: 'Se - Pay - Shan',
-    room: '204-kompyuter xonasi',
+    room: 'Google xona',
     monthlyPayment: '500 000 so\'m',
     paymentStatus: 'To\'langan',
     attendancePercentage: 97,
@@ -50,9 +51,14 @@ class MockProfileRepository {
     LocalStorageService.saveUserData(student.toJson());
   }
 
+  static void reset() {
+    studentNotifier.value = defaultStudent;
+  }
+
   static void updateProfile({
     String? fullName,
     String? phone,
+    String? parentName,
     String? parentPhone,
     String? email,
     String? gender,
@@ -61,6 +67,7 @@ class MockProfileRepository {
     studentNotifier.value = studentNotifier.value.copyWith(
       fullName: fullName,
       phone: phone,
+      parentName: parentName,
       parentPhone: parentPhone,
       email: email,
       gender: gender,

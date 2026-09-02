@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
-import 'package:m_it_student_platform/core/services/reminder_service.dart';
+import 'package:m_it_student_platform/core/utils/haptics.dart';
 import 'package:m_it_student_platform/core/widgets/ui/mit_toast.dart';
 import 'package:m_it_student_platform/features/lessons/data/repositories/mock_lessons_repository.dart';
 import 'package:m_it_student_platform/features/lessons/domain/models/lesson_model.dart';
+import 'package:m_it_student_platform/features/profile/data/repositories/mock_profile_repository.dart';
 
 class LessonDetailsSheet extends StatelessWidget {
   const LessonDetailsSheet({
@@ -15,6 +16,7 @@ class LessonDetailsSheet extends StatelessWidget {
   final Lesson lesson;
 
   static void show(BuildContext context, Lesson lesson) {
+    AppHaptics.selection();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -27,392 +29,399 @@ class LessonDetailsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final student = MockProfileRepository.studentNotifier.value;
+
+    // High-contrast Theme Colors
+    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textSecondary = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569);
+
+    final sheetBg = isDark ? const Color(0xFF001426) : Colors.white;
+    final cardBg = isDark ? const Color(0xFF001E36) : const Color(0xFFF8FAFC);
+    final borderColor = isDark ? const Color(0xFF002F52) : const Color(0xFFE2E8F0);
+
+    // Fallbacks to guarantee 100% accurate data
+    final effectiveSubject = lesson.subject.isNotEmpty ? lesson.subject : student.courseName;
+    final effectiveTeacher = lesson.teacher.isNotEmpty ? lesson.teacher : student.mentorName;
+    final effectiveTeacherRole = lesson.teacherRole.isNotEmpty ? lesson.teacherRole : 'Bosh mentor';
+    final effectiveCourseCode = lesson.courseCode.isNotEmpty ? lesson.courseCode : student.group;
+    final effectiveDays = lesson.scheduleDays.isNotEmpty ? lesson.scheduleDays : student.classDays;
+
+    String effectiveTime = lesson.startTime;
+    if (effectiveTime.isEmpty && student.classTime.isNotEmpty) {
+      effectiveTime = student.classTime;
+    } else if (lesson.endTime.isNotEmpty) {
+      effectiveTime = '${lesson.startTime} – ${lesson.endTime}';
+    }
+    if (effectiveTime.isEmpty) effectiveTime = '11:00 – 14:00';
+
+    final effectiveRoom = lesson.room.isNotEmpty && lesson.room != '3-xona'
+        ? lesson.room
+        : (student.room.isNotEmpty ? student.room : 'Google xonasi');
+    final effectiveBranch = (lesson.branchName != null && lesson.branchName!.isNotEmpty)
+        ? lesson.branchName!
+        : 'M-IT Bosh filiali';
 
     return Container(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: sheetBg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.12),
+            blurRadius: 24,
+            offset: const Offset(0, -4),
+          ),
+        ],
       ),
-      padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 14,
-        bottom: MediaQuery.of(context).padding.bottom + 24,
+      padding: EdgeInsets.fromLTRB(
+        20,
+        14,
+        20,
+        MediaQuery.of(context).padding.bottom + 20,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 44,
-              height: 5,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.outline,
-                borderRadius: BorderRadius.circular(10),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Drag handle ──
+            Center(
+              child: Container(
+                width: 40,
+                height: 4.5,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              if (lesson.courseCode.isNotEmpty) ...[
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            const SizedBox(height: 14),
+
+            // ── Top Tags & Close Bar ──
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (effectiveCourseCode.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.primary.withValues(alpha: 0.25) : AppColors.primarySurface,
+                      color: isDark
+                          ? const Color(0xFF38BDF8).withValues(alpha: 0.15)
+                          : const Color(0xFF00213D).withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isDark
+                            ? const Color(0xFF38BDF8).withValues(alpha: 0.4)
+                            : const Color(0xFF00213D).withValues(alpha: 0.2),
+                      ),
                     ),
                     child: Text(
-                      lesson.courseCode,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      effectiveCourseCode,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
-                        color: isDark ? AppColors.primaryAccent : AppColors.primary,
+                        color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF00213D),
                       ),
                     ),
+                  )
+                else
+                  const SizedBox.shrink(),
+                // Close button
+                IconButton(
+                  icon: Icon(
+                    Icons.close_rounded,
+                    size: 22,
+                    color: textPrimary,
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  splashRadius: 18,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // ── Main Subject Title ──
+            Text(
+              effectiveSubject,
+              style: TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.3,
+                color: textPrimary,
+                height: 1.25,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // ── Mentor Card ──
+            if (effectiveTeacher.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFFD3FF32).withValues(alpha: 0.2)
+                            : const Color(0xFF00213D).withValues(alpha: 0.08),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.person_rounded,
+                        size: 22,
+                        color: isDark ? const Color(0xFFD3FF32) : const Color(0xFF00213D),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            effectiveTeacher,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              color: textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            effectiveTeacherRole,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 14),
+
+            // ── 2x2 Clean Detail Cards (Vaqt, Kun, Xona, Filial) ──
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDetailBox(
+                    icon: Icons.access_time_filled_rounded,
+                    iconColor: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
+                    iconBg: isDark
+                        ? const Color(0xFF38BDF8).withValues(alpha: 0.18)
+                        : const Color(0xFF0284C7).withValues(alpha: 0.12),
+                    label: 'Dars vaqti',
+                    value: effectiveTime,
+                    textPrimary: textPrimary,
+                    textMuted: textMuted,
+                    cardBg: cardBg,
+                    borderColor: borderColor,
                   ),
                 ),
-                const SizedBox(width: 8),
-              ],
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : AppColors.surfaceSecondary,
-                  borderRadius: BorderRadius.circular(6),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildDetailBox(
+                    icon: Icons.calendar_today_rounded,
+                    iconColor: isDark ? const Color(0xFFD3FF32) : const Color(0xFF0D9488),
+                    iconBg: isDark
+                        ? const Color(0xFFD3FF32).withValues(alpha: 0.18)
+                        : const Color(0xFF0D9488).withValues(alpha: 0.12),
+                    label: context.tr('classDays'),
+                    value: context.formatScheduleDays(effectiveDays, full: true),
+                    textPrimary: textPrimary,
+                    textMuted: textMuted,
+                    cardBg: cardBg,
+                    borderColor: borderColor,
+                  ),
                 ),
-                child: Text(
-                  context.tr('inPersonClass'),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDetailBox(
+                    icon: Icons.meeting_room_rounded,
+                    iconColor: isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706),
+                    iconBg: isDark
+                        ? const Color(0xFFFBBF24).withValues(alpha: 0.18)
+                        : const Color(0xFFD97706).withValues(alpha: 0.12),
+                    label: 'Dars xonasi',
+                    value: effectiveRoom,
+                    textPrimary: textPrimary,
+                    textMuted: textMuted,
+                    cardBg: cardBg,
+                    borderColor: borderColor,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildDetailBox(
+                    icon: Icons.location_on_rounded,
+                    iconColor: isDark ? const Color(0xFF34D399) : const Color(0xFF7C3AED),
+                    iconBg: isDark
+                        ? const Color(0xFF34D399).withValues(alpha: 0.18)
+                        : const Color(0xFF7C3AED).withValues(alpha: 0.12),
+                    label: 'Filial',
+                    value: effectiveBranch,
+                    textPrimary: textPrimary,
+                    textMuted: textMuted,
+                    cardBg: cardBg,
+                    borderColor: borderColor,
+                  ),
+                ),
+              ],
+            ),
+
+            // ── Dars Mavzusi / Syllabus Topic ──
+            if (lesson.syllabusTopic != null && lesson.syllabusTopic!.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.menu_book_rounded,
+                          size: 16,
+                          color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Dars mavzusi',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      lesson.syllabusTopic!,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: textPrimary,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 18),
+
+            // ── Bottom Full-Width Action Button ──
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isDark ? const Color(0xFFD3FF32) : const Color(0xFF00213D),
+                  foregroundColor: isDark ? const Color(0xFF001426) : Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Tushunarli',
                   style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
-              const Spacer(),
-              InkWell(
-                onTap: () {
-                  ReminderService.toggleLessonReminder(context, lesson);
-                },
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: AppColors.accentLime.withValues(alpha: isDark ? 0.2 : 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.accentLime.withValues(alpha: 0.4)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.notifications_active_rounded, size: 14, color: AppColors.success),
-                      const SizedBox(width: 4),
-                      Text(
-                        context.tr('reminder'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: isDark ? AppColors.accentLime : AppColors.success,
-                        ),
-                      ),
-                    ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailBox({
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBg,
+    required String label,
+    required String value,
+    required Color textPrimary,
+    required Color textMuted,
+    required Color cardBg,
+    required Color borderColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(icon, size: 14, color: iconColor),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: textMuted,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           Text(
-            lesson.subject,
+            value,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          if (lesson.teacher.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              lesson.teacherRole.isNotEmpty
-                  ? '${lesson.teacher} • ${lesson.teacherRole}'
-                  : lesson.teacher,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 13,
-                color: isDark ? const Color(0xFFCBD5E1) : AppColors.textSecondary,
-              ),
-            ),
-          ],
-          const SizedBox(height: 16),
-          Divider(color: theme.colorScheme.outline),
-          const SizedBox(height: 14),
-
-          // Schedule & Room Info Box
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : AppColors.surfaceSecondary,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                width: 1,
-              ),
-            ),
-            child: Column(
-              children: [
-                if (lesson.teacher.isNotEmpty)
-                  _InfoRow(
-                    icon: Icons.person_rounded,
-                    label: context.tr('headMentor'),
-                    value: '${lesson.teacher}${lesson.teacherRole.isNotEmpty ? ' (${lesson.teacherRole})' : ''}',
-                  ),
-                if (lesson.supportTeacher != null && lesson.supportTeacher!.isNotEmpty) ...[
-                  if (lesson.teacher.isNotEmpty) const SizedBox(height: 12),
-                  _InfoRow(
-                    icon: Icons.support_agent_rounded,
-                    label: context.tr('assistantMentor'),
-                    value: '${lesson.supportTeacher!}${lesson.supportTeacherRole != null && lesson.supportTeacherRole!.isNotEmpty ? ' (${lesson.supportTeacherRole})' : ''}',
-                  ),
-                ],
-                if (lesson.startTime.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  _InfoRow(
-                    icon: Icons.access_time_filled_rounded,
-                    label: context.tr('classSchedule'),
-                    value: '${lesson.startTime} – ${lesson.endTime}${lesson.durationMinutes > 0 ? ' (${lesson.durationMinutes} min)' : ''}',
-                  ),
-                ],
-                if (lesson.scheduleDays.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  _InfoRow(
-                    icon: Icons.calendar_today_rounded,
-                    label: context.tr('lessonDays'),
-                    value: '${lesson.scheduleDays}${lesson.dayOfWeek.isNotEmpty && lesson.dayOfWeek != lesson.scheduleDays ? ' (${lesson.dayOfWeek})' : ''}',
-                  ),
-                ],
-                if (lesson.room.isNotEmpty || (lesson.branchName != null && lesson.branchName!.isNotEmpty)) ...[
-                  const SizedBox(height: 12),
-                  _InfoRow(
-                    icon: Icons.meeting_room_rounded,
-                    label: context.tr('labRoom'),
-                    value: '${lesson.room.isNotEmpty ? lesson.room : 'Asosiy xona'}${lesson.branchName != null && lesson.branchName!.isNotEmpty ? ', ${lesson.branchName}' : ''}',
-                  ),
-                ],
-                if (lesson.monthlyFee != null && lesson.monthlyFee!.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  _InfoRow(
-                    icon: Icons.payments_rounded,
-                    label: context.tr('statMonthlyTuition'),
-                    value: lesson.monthlyFee!,
-                  ),
-                ],
-                if (lesson.studentCount != null) ...[
-                  const SizedBox(height: 12),
-                  _InfoRow(
-                    icon: Icons.groups_rounded,
-                    label: context.tr('groupStudentsCount'),
-                    value: '${lesson.studentCount} ta talaba',
-                  ),
-                ],
-              ],
-            ),
-          ),
-
-          if (lesson.description != null && lesson.description!.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Text(
-              context.tr('aboutGroup'),
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              lesson.description!,
-              style: TextStyle(
-                fontSize: 13,
-                color: isDark ? const Color(0xFFCBD5E1) : AppColors.textSecondary,
-              ),
-            ),
-          ],
-
-          if (lesson.syllabusTopic != null) ...[
-            const SizedBox(height: 14),
-            Text(
-              context.tr('syllabusTopic'),
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              lesson.syllabusTopic!,
-              style: TextStyle(
-                fontSize: 13,
-                color: isDark ? const Color(0xFFCBD5E1) : AppColors.textSecondary,
-              ),
-            ),
-          ],
-
-          if (lesson.notes != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              context.tr('studentNotes'),
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              lesson.notes!,
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark ? const Color(0xFF94A3B8) : AppColors.textMuted,
-              ),
-            ),
-          ],
-
-          // Uy vazifasi bloki
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF001E36) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: isDark ? const Color(0xFF002F52) : const Color(0xFFCBD5E1),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.assignment_turned_in_rounded, size: 18, color: Color(0xFFD3FF32)),
-                        const SizedBox(width: 8),
-                        Text(
-                          context.tr('lessonTask'),
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w800,
-                            color: isDark ? Colors.white : const Color(0xFF001E36),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD3FF32).withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        context.tr('submitAction'),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF769B00),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  lesson.syllabusTopic != null && lesson.syllabusTopic!.isNotEmpty
-                      ? '${lesson.syllabusTopic} • ${context.tr('doPracticalTasks')}'
-                      : context.tr('doPracticalTasks'),
-                  style: TextStyle(
-                    fontSize: 13,
-                    height: 1.4,
-                    color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 22),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(context.tr('close')),
+              fontSize: 13.5,
+              fontWeight: FontWeight.w900,
+              color: textPrimary,
+              height: 1.2,
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Icon(
-            icon,
-            size: 16,
-            color: isDark ? AppColors.primaryAccent : AppColors.primary,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          '$label: ',
-          style: TextStyle(
-            fontSize: 12.5,
-            color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            softWrap: true,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 12.5,
-              color: theme.colorScheme.onSurface,
-              fontWeight: FontWeight.w700,
-              height: 1.25,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

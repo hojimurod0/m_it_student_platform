@@ -50,3 +50,12 @@ app.*.map.json
 android/key.properties
 key.properties
 
+# Environment and Secrets (DO NOT COMMIT)
+*.env
+.env*
+*.local
+credentials.json
+google-services.json
+GoogleService-Info.plist
+scratch/
+

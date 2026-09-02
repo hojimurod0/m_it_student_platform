@@ -61,6 +61,22 @@ class PaymentService {
       return true;
     }
 
+    if (provider == PaymentProvider.payme && paymeMerchantId.isEmpty) {
+      if (context.mounted) {
+        MitToast.info(context, 'Payme onlayn to\'lovi sozlanmoqda. Iltimos, ma\'muriyat kassasi orqali to\'lang.');
+        _showCashierInfo(context);
+      }
+      return false;
+    }
+
+    if (provider == PaymentProvider.click && (clickServiceId.isEmpty || clickMerchantId.isEmpty)) {
+      if (context.mounted) {
+        MitToast.info(context, 'Click onlayn to\'lovi sozlanmoqda. Iltimos, ma\'muriyat kassasi orqali to\'lang.');
+        _showCashierInfo(context);
+      }
+      return false;
+    }
+
     final urlString = switch (provider) {
       PaymentProvider.payme => generatePaymeUrl(amount: amount, studentId: studentId),
       PaymentProvider.click => generateClickUrl(amount: amount, studentId: studentId),

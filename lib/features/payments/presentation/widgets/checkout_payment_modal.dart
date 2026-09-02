@@ -6,7 +6,7 @@ import 'package:m_it_student_platform/core/widgets/ui/mit_toast.dart';
 import 'package:m_it_student_platform/features/profile/data/repositories/mock_profile_repository.dart';
 
 class CheckoutPaymentModal extends StatefulWidget {
-  const CheckoutPaymentModal({super.key, this.initialAmount = 400000});
+  const CheckoutPaymentModal({super.key, this.initialAmount = 500000});
 
   final double initialAmount;
 
@@ -15,7 +15,7 @@ class CheckoutPaymentModal extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => CheckoutPaymentModal(initialAmount: initialAmount ?? 400000),
+      builder: (context) => CheckoutPaymentModal(initialAmount: initialAmount ?? 500000),
     );
   }
 

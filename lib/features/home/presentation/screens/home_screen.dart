@@ -6,7 +6,6 @@ import 'package:m_it_student_platform/core/routes/app_routes.dart';
 import 'package:m_it_student_platform/core/utils/haptics.dart';
 import 'package:m_it_student_platform/core/widgets/section_header.dart';
 import 'package:m_it_student_platform/core/widgets/student_avatar.dart';
-import 'package:m_it_student_platform/features/profile/presentation/widgets/edit_profile_modal.dart';
 import 'package:m_it_student_platform/features/home/data/repositories/mock_home_repository.dart';
 import 'package:m_it_student_platform/features/home/presentation/widgets/featured_class_card.dart';
 import 'package:m_it_student_platform/features/home/presentation/widgets/stat_card.dart';
@@ -15,6 +14,7 @@ import 'package:m_it_student_platform/features/lessons/presentation/widgets/less
 import 'package:m_it_student_platform/features/payments/data/repositories/mock_payments_repository.dart';
 import 'package:m_it_student_platform/features/profile/data/repositories/mock_profile_repository.dart';
 import 'package:m_it_student_platform/features/profile/domain/models/student_model.dart';
+import 'package:m_it_student_platform/core/network/app_config.dart';
 import 'package:m_it_student_platform/core/storage/app_cache_service.dart';
 import 'package:m_it_student_platform/core/di/injection_container.dart';
 import 'package:m_it_student_platform/features/home/domain/repositories/home_repository.dart';
@@ -23,7 +23,6 @@ import 'package:m_it_student_platform/features/home/presentation/widgets/resourc
 import 'package:m_it_student_platform/features/lessons/data/repositories/lessons_repository_impl.dart';
 import 'package:m_it_student_platform/features/lessons/domain/models/lesson_model.dart';
 import 'package:m_it_student_platform/features/lessons/domain/repositories/lessons_repository.dart';
-import 'package:m_it_student_platform/features/lessons/presentation/widgets/lesson_card.dart';
 import 'package:m_it_student_platform/core/widgets/shimmer_loading.dart';
 import 'package:m_it_student_platform/features/payments/domain/entities/payment.dart';
 import 'package:m_it_student_platform/features/payments/domain/repositories/payments_repository.dart';
@@ -46,7 +45,9 @@ class _HomeScreenState extends State<HomeScreen>
   late final PaymentsRepository _paymentsRepo;
 
   Lesson _featured = MockHomeRepository.featuredClass;
-  List<Lesson> _todayClasses = MockLessonsRepository.todayLessons;
+  List<Lesson> _todayClasses = AppConfig.useMockData
+      ? MockLessonsRepository.todayLessons
+      : const [];
   PaymentSummary _payment = MockPaymentsRepository.paymentSummary;
   bool _isLoading = true;
 
@@ -188,11 +189,15 @@ class _HomeScreenState extends State<HomeScreen>
                   // 1. Student Avatar + Name + Notification Bell Header (Har doim ochiq, Shimmersiz)
                   Row(
                     children: [
-                      // Avatar on the Left
+                      // Avatar on the Left (Navigates to Profile)
                       GestureDetector(
                         onTap: () {
                           AppHaptics.selection();
-                          EditProfileModal.show(context, student);
+                          if (widget.onNavigateToTab != null) {
+                            widget.onNavigateToTab!(3);
+                          } else {
+                            Navigator.of(context).pushNamed(AppRoutes.profile);
+                          }
                         },
                         child: StudentAvatar(
                           size: 46,
@@ -203,19 +208,29 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                       const SizedBox(width: 12),
 
-                      // Student Name in the Middle
+                      // Student Name in the Middle (Navigates to Profile)
                       Expanded(
-                        child: Text(
-                          student.fullName.isNotEmpty
-                              ? student.fullName
-                              : context.tr('student'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 19.5,
-                            fontWeight: FontWeight.w800,
-                            color: theme.colorScheme.onSurface,
-                            letterSpacing: -0.4,
+                        child: GestureDetector(
+                          onTap: () {
+                            AppHaptics.selection();
+                            if (widget.onNavigateToTab != null) {
+                              widget.onNavigateToTab!(3);
+                            } else {
+                              Navigator.of(context).pushNamed(AppRoutes.profile);
+                            }
+                          },
+                          child: Text(
+                            student.fullName.isNotEmpty
+                                ? student.fullName
+                                : context.tr('student'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 19.5,
+                              fontWeight: FontWeight.w800,
+                              color: theme.colorScheme.onSurface,
+                              letterSpacing: -0.4,
+                            ),
                           ),
                         ),
                       ),
@@ -282,11 +297,21 @@ class _HomeScreenState extends State<HomeScreen>
                     const ShimmerCardSkeleton(height: 170)
                   else () {
                     var effectiveFeatured = featured;
-                    if (effectiveFeatured.room.isEmpty) {
-                      effectiveFeatured = effectiveFeatured.copyWith(
-                        room: student.room.isNotEmpty ? student.room : '3-xona',
-                      );
-                    }
+                    final studentProfile = MockProfileRepository.currentStudent;
+                    final resolvedRoom = effectiveFeatured.room.isNotEmpty && effectiveFeatured.room != '3-xona'
+                        ? effectiveFeatured.room
+                        : (student.room.isNotEmpty && student.room != '3-xona'
+                            ? student.room
+                            : (studentProfile.room.isNotEmpty && studentProfile.room != '3-xona'
+                                ? studentProfile.room
+                                : (todayClasses.isNotEmpty && todayClasses.first.room.isNotEmpty
+                                    ? todayClasses.first.room
+                                    : (student.room.isNotEmpty
+                                        ? student.room
+                                        : '204-kompyuter xonasi'))));
+
+                    effectiveFeatured = effectiveFeatured.copyWith(room: resolvedRoom);
+
                     if (effectiveFeatured.startTime.isEmpty && student.classTime.isNotEmpty) {
                       final parts = student.classTime.split(RegExp(r'\s*[–-]\s*'));
                       if (parts.isNotEmpty) {
@@ -295,6 +320,31 @@ class _HomeScreenState extends State<HomeScreen>
                           endTime: parts.length > 1 ? parts[1].trim() : '',
                         );
                       }
+                    }
+                    if (effectiveFeatured.teacher.isEmpty && student.mentorName.isNotEmpty) {
+                      effectiveFeatured = effectiveFeatured.copyWith(
+                        teacher: student.mentorName,
+                      );
+                    }
+                    if (effectiveFeatured.subject.isEmpty && student.courseName.isNotEmpty) {
+                      effectiveFeatured = effectiveFeatured.copyWith(
+                        subject: student.courseName,
+                      );
+                    }
+                    if (effectiveFeatured.courseCode.isEmpty && student.group.isNotEmpty) {
+                      effectiveFeatured = effectiveFeatured.copyWith(
+                        courseCode: student.group,
+                      );
+                    }
+                    if (effectiveFeatured.scheduleDays.isEmpty && student.classDays.isNotEmpty) {
+                      effectiveFeatured = effectiveFeatured.copyWith(
+                        scheduleDays: student.classDays,
+                      );
+                    }
+                    if (effectiveFeatured.branchName == null || effectiveFeatured.branchName!.isEmpty) {
+                      effectiveFeatured = effectiveFeatured.copyWith(
+                        branchName: 'M-IT Bosh filiali',
+                      );
                     }
                     return RepaintBoundary(
                       child: FeaturedClassCard(
@@ -328,13 +378,11 @@ class _HomeScreenState extends State<HomeScreen>
                             ),
                         children: [
                         StatCard(
-                          title: context.tr('statTodayClasses'),
-                          value: '${todayClasses.length}',
+                          title: 'Guruh',
+                          value: student.group.isNotEmpty ? student.group : 'M-IT',
                           icon: Icons.school_rounded,
                           accentColor: AppColors.primary,
-                          badgeText: todayClasses.isNotEmpty
-                              ? context.tr('activeStatus')
-                              : (student.group.isNotEmpty ? student.group : context.tr('activeStatus')),
+                          badgeText: 'Faol',
                           badgeColor: isDark
                               ? AppColors.primaryAccent
                               : AppColors.primary,
@@ -345,7 +393,7 @@ class _HomeScreenState extends State<HomeScreen>
                           value: '${student.attendancePercentage}%',
                           icon: Icons.fact_check_outlined,
                           accentColor: AppColors.secondary,
-                          badgeText: context.tr('attendanceTrend'),
+                          badgeText: student.attendancePercentage >= 90 ? 'A\'lo' : 'Faol',
                           badgeColor: AppColors.success,
                           onTap: () {
                             AppHaptics.selection();
@@ -357,7 +405,7 @@ class _HomeScreenState extends State<HomeScreen>
                           value: '${student.overallScore}%',
                           icon: Icons.grade_outlined,
                           accentColor: AppColors.accentPurple,
-                          badgeText: context.tr('topRank'),
+                          badgeText: 'O\'rtacha',
                           badgeColor: AppColors.accentPurple,
                           onTap: () {
                             AppHaptics.selection();
@@ -365,7 +413,7 @@ class _HomeScreenState extends State<HomeScreen>
                           },
                         ),
                         StatCard(
-                          title: context.tr('statMonthlyTuition'),
+                          title: 'To\'lov (1-oy)',
                           value: _formatMonthlyFee(
                             featured.monthlyFee,
                             student.monthlyPayment,
@@ -374,39 +422,16 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                           icon: Icons.account_balance_wallet_outlined,
                           accentColor: const Color(0xFF10B981),
-                          badgeText: context.tr('tuitionCycle'),
-                          badgeColor: const Color(0xFF10B981),
+                          badgeText: payment.isPaid ? "To'langan" : "To'lanmagan",
+                          badgeColor: payment.isPaid
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFFEF4444),
                           onTap: () => widget.onNavigateToTab?.call(2),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 22),
-
-                  // 5. Today's Lessons (Bugungi darslar - Faqat 1 ta dars, Barchasi bosilganda darslar tabiga o'tadi)
-                  SectionHeader(
-                    title: context.tr('todayClasses'),
-                    subtitle: student.group.isNotEmpty ? student.group : 'Back end 05',
-                    actionLabel: context.tr('seeAll'),
-                    onAction: () => widget.onNavigateToTab?.call(1),
-                  ),
-                  const SizedBox(height: 12),
-                  if (_isLoading)
-                    const ShimmerTopicListSkeleton(itemCount: 1)
-                  else () {
-                    final rawLesson = todayClasses.isNotEmpty ? todayClasses.first : featured;
-                    final effectiveLesson = (rawLesson.room.isNotEmpty || student.room.isEmpty)
-                        ? rawLesson
-                        : rawLesson.copyWith(room: student.room);
-                    return LessonCard(
-                      lesson: effectiveLesson,
-                      onTap: () => LessonDetailsSheet.show(
-                        context,
-                        effectiveLesson,
-                      ),
-                    );
-                  }(),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                 ],
               );
             },

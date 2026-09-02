@@ -21,4 +21,6 @@ class AppRoutes {
   static const String chat          = '/chat';
   static const String review        = '/review';
   static const String complaint     = '/complaint';
+  static const String privacyPolicy = '/privacy-policy';
+  static const String termsOfService = '/terms-of-service';
 }

@@ -138,32 +138,6 @@ Map<String, dynamic> _$TopicAttachmentToJson(TopicAttachment instance) =>
       'downloadUrl': instance.downloadUrl,
     };
 
-TopicModel _$TopicModelFromJson(Map<String, dynamic> json) => TopicModel(
-  id: json['id'] as String,
-  courseId: json['courseId'] as String,
-  title: json['title'] as String,
-  status:
-      $enumDecodeNullable(
-        _$TopicStatusEnumMap,
-        json['status'],
-        unknownValue: TopicStatus.notDone,
-      ) ??
-      TopicStatus.notDone,
-  givenDate: json['givenDate'] as String? ?? '',
-  deadline: json['deadline'] as String? ?? '',
-  remainingTime: json['remainingTime'] as String? ?? '',
-  isNewHomework: json['isNewHomework'] as bool? ?? false,
-  description: json['description'] as String,
-  codeSnippet: json['codeSnippet'] as String?,
-  attachments:
-      (json['attachments'] as List<dynamic>?)
-          ?.map((e) => TopicAttachment.fromJson(e as Map<String, dynamic>))
-          .toList() ??
-      [],
-  submittedUrl: json['submittedUrl'] as String?,
-  score: (json['score'] as num?)?.toInt(),
-);
-
 Map<String, dynamic> _$TopicModelToJson(TopicModel instance) =>
     <String, dynamic>{
       'id': instance.id,
@@ -179,6 +153,12 @@ Map<String, dynamic> _$TopicModelToJson(TopicModel instance) =>
       'attachments': instance.attachments.map((e) => e.toJson()).toList(),
       'submittedUrl': instance.submittedUrl,
       'score': instance.score,
+      'homeworkId': instance.homeworkId,
+      'homeworkTitle': instance.homeworkTitle,
+      'homeworkDescription': instance.homeworkDescription,
+      'order': instance.order,
+      'created_at': instance.createdAt,
+      'statusLabel': instance.statusLabel,
     };
 
 const _$TopicStatusEnumMap = {

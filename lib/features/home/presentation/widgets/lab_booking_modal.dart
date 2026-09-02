@@ -234,7 +234,9 @@ class _LabBookingModalState extends State<LabBookingModal> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: active ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                      color: active
+                          ? (isDark ? AppColors.brandNavy : Colors.white)
+                          : (isDark ? Colors.white70 : Colors.black87),
                     ),
                   ),
                 ),
@@ -267,10 +269,6 @@ class _LabBookingModalState extends State<LabBookingModal> {
                       color: active
                           ? (isDark ? AppColors.primaryAccent : AppColors.primary)
                           : (isDark ? AppColors.darkSurfaceSecondary : AppColors.surfaceSecondary),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: active ? Colors.transparent : theme.colorScheme.outline,
-                      ),
                     ),
                     child: Center(
                       child: Text(
@@ -278,7 +276,9 @@ class _LabBookingModalState extends State<LabBookingModal> {
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 13,
-                          color: active ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                          color: active
+                              ? (isDark ? AppColors.brandNavy : Colors.white)
+                              : (isDark ? Colors.white70 : Colors.black87),
                         ),
                       ),
                     ),
@@ -295,6 +295,8 @@ class _LabBookingModalState extends State<LabBookingModal> {
             child: ElevatedButton.icon(
               onPressed: () => setState(() => _booked = true),
               style: ElevatedButton.styleFrom(
+                backgroundColor: isDark ? AppColors.accentLime : AppColors.brandNavy,
+                foregroundColor: isDark ? AppColors.brandNavy : Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
@@ -365,6 +367,10 @@ class _LabBookingModalState extends State<LabBookingModal> {
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDark ? AppColors.accentLime : AppColors.brandNavy,
+              foregroundColor: isDark ? AppColors.brandNavy : Colors.white,
+            ),
             child: Text(context.tr('labBookGotIt')),
           ),
         ],

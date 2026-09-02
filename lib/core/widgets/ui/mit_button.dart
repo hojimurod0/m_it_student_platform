@@ -56,13 +56,17 @@ class MitButton extends StatelessWidget {
           icon!,
           const SizedBox(width: AppSpacing.sm),
         ],
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14.5,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.2,
-            color: _getForegroundColor(isDark),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.2,
+              color: _getForegroundColor(isDark),
+            ),
           ),
         ),
       ],

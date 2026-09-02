@@ -7,5 +7,3 @@ Future<void> main() async {
   await AppBootstrap.initialize();
   runApp(const MitStudentApp());
 }
-
-

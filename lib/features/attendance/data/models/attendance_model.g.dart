@@ -22,6 +22,7 @@ AttendanceRecordModel _$AttendanceRecordModelFromJson(
       AttendanceTypeModel.faceId,
   groupName: json['group_name'] as String?,
   note: json['note'] as String?,
+  isPresent: json['is_present'] as bool? ?? true,
 );
 
 Map<String, dynamic> _$AttendanceRecordModelToJson(
@@ -34,6 +35,7 @@ Map<String, dynamic> _$AttendanceRecordModelToJson(
   'type': _$AttendanceTypeModelEnumMap[instance.type]!,
   'group_name': instance.groupName,
   'note': instance.note,
+  'is_present': instance.isPresent,
 };
 
 const _$AttendanceTypeModelEnumMap = {

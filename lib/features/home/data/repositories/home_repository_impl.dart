@@ -44,53 +44,79 @@ class HomeRepositoryImpl implements HomeRepository {
       final mergedMap = <String, dynamic>{};
 
       if (groupData != null) {
+        Map<String, dynamic>? firstGroup;
         if (groupData is List && groupData.isNotEmpty && groupData.first is Map) {
-          mergedMap.addAll(Map<String, dynamic>.from(groupData.first as Map));
+          firstGroup = Map<String, dynamic>.from(groupData.first as Map);
         } else if (groupData is Map && groupData['results'] is List && (groupData['results'] as List).isNotEmpty) {
           final f = (groupData['results'] as List).first;
-          if (f is Map) mergedMap.addAll(Map<String, dynamic>.from(f));
+          if (f is Map) firstGroup = Map<String, dynamic>.from(f);
+        } else if (groupData is Map && groupData['groups'] is List && (groupData['groups'] as List).isNotEmpty) {
+          final f = (groupData['groups'] as List).first;
+          if (f is Map) firstGroup = Map<String, dynamic>.from(f);
+        } else if (groupData is Map && groupData['data'] is List && (groupData['data'] as List).isNotEmpty) {
+          final f = (groupData['data'] as List).first;
+          if (f is Map) firstGroup = Map<String, dynamic>.from(f);
         } else if (groupData is Map<String, dynamic>) {
-          mergedMap.addAll(groupData);
+          firstGroup = groupData;
+        }
+
+        if (firstGroup != null) {
+          mergedMap.addAll(firstGroup);
+          if (firstGroup['room_name'] != null && firstGroup['room_name'].toString().isNotEmpty) {
+            mergedMap['room'] = firstGroup['room_name'];
+          }
+          if (firstGroup['group'] is Map) {
+            final grp = Map<String, dynamic>.from(firstGroup['group'] as Map);
+            mergedMap.addAll(grp);
+            if (grp['room_name'] != null && grp['room_name'].toString().isNotEmpty) {
+              mergedMap['room'] = grp['room_name'];
+            }
+          }
         }
       }
 
       if (schedData != null) {
-        if (schedData is Map && schedData['schedule'] is List) {
-          final sched = schedData['schedule'] as List;
-          final list = sched.whereType<Map<String, dynamic>>().toList();
-          final currentWeekday = DateTime.now().weekday;
-          final activeLesson = list.firstWhere(
-            (s) => (s['is_today'] == true || s['weekday_index'] == currentWeekday) && s['is_lesson'] == true,
-            orElse: () => list.firstWhere(
-              (s) => s['is_lesson'] == true,
-              orElse: () => list.isNotEmpty ? list.first : <String, dynamic>{},
-            ),
-          );
-          if (activeLesson.isNotEmpty) {
-            final activeCopy = Map<String, dynamic>.from(activeLesson);
-            if ((activeCopy['room'] == null || activeCopy['room'].toString().isEmpty) &&
-                mergedMap['room'] != null &&
-                mergedMap['room'].toString().isNotEmpty) {
-              activeCopy['room'] = mergedMap['room'];
+        if (schedData is Map<String, dynamic>) {
+          if (schedData['group'] is Map) {
+            final grp = Map<String, dynamic>.from(schedData['group'] as Map);
+            for (final e in grp.entries) {
+              if (e.value != null && e.value.toString().isNotEmpty) {
+                mergedMap[e.key] = e.value;
+              }
             }
-            mergedMap.addAll(activeCopy);
+          }
+          for (final e in schedData.entries) {
+            if (e.key != 'schedule' && e.value != null && e.value.toString().isNotEmpty) {
+              mergedMap[e.key] = e.value;
+            }
+          }
+
+          if (schedData['schedule'] is List) {
+            final sched = schedData['schedule'] as List;
+            final list = sched.whereType<Map<String, dynamic>>().toList();
+            final currentWeekday = DateTime.now().weekday;
+            final activeLesson = list.firstWhere(
+              (s) => (s['is_today'] == true || s['weekday_index'] == currentWeekday || s['weekday'] == currentWeekday) && s['is_lesson'] == true,
+              orElse: () => list.firstWhere(
+                (s) => s['is_lesson'] == true,
+                orElse: () => list.isNotEmpty ? list.first : <String, dynamic>{},
+              ),
+            );
+            if (activeLesson.isNotEmpty) {
+              for (final e in activeLesson.entries) {
+                if (e.value != null && e.value.toString().isNotEmpty) {
+                  mergedMap[e.key] = e.value;
+                }
+              }
+            }
           }
         } else if (schedData is List && schedData.isNotEmpty && schedData.first is Map) {
           final sMap = Map<String, dynamic>.from(schedData.first as Map);
-          if ((sMap['room'] == null || sMap['room'].toString().isEmpty) &&
-              mergedMap['room'] != null &&
-              mergedMap['room'].toString().isNotEmpty) {
-            sMap['room'] = mergedMap['room'];
+          for (final e in sMap.entries) {
+            if (e.value != null && e.value.toString().isNotEmpty) {
+              mergedMap[e.key] = e.value;
+            }
           }
-          mergedMap.addAll(sMap);
-        } else if (schedData is Map<String, dynamic>) {
-          final sMap = Map<String, dynamic>.from(schedData);
-          if ((sMap['room'] == null || sMap['room'].toString().isEmpty) &&
-              mergedMap['room'] != null &&
-              mergedMap['room'].toString().isNotEmpty) {
-            sMap['room'] = mergedMap['room'];
-          }
-          mergedMap.addAll(sMap);
         }
       }
 

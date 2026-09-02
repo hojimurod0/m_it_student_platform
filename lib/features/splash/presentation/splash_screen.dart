@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
+import 'package:m_it_student_platform/core/di/injection_container.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
+import 'package:m_it_student_platform/core/network/app_config.dart';
 import 'package:m_it_student_platform/core/routes/app_routes.dart';
 import 'package:m_it_student_platform/core/storage/local_storage_service.dart';
 import 'package:m_it_student_platform/core/widgets/app_logo.dart';
+import 'package:m_it_student_platform/features/auth/domain/repositories/auth_repository.dart';
+import 'package:m_it_student_platform/features/auth/data/repositories/auth_repository_impl.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -45,19 +49,31 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    _timer = Timer(const Duration(milliseconds: 1800), () {
+    _timer = Timer(const Duration(milliseconds: 1800), () async {
       if (!mounted) return;
-      
+
       final token = LocalStorageService.getAuthToken();
-      final hasValidSession = LocalStorageService.isLoggedIn() && token != null && token.isNotEmpty;
-      
-      if (!hasValidSession) {
-        LocalStorageService.clearAuth();
-      }
-      
+      final isLoggedIn = LocalStorageService.isLoggedIn();
+
       String targetRoute;
-      if (hasValidSession) {
-        targetRoute = AppRoutes.dashboard;
+      if (isLoggedIn && token != null && token.isNotEmpty) {
+        if (!AppConfig.useMockData) {
+          try {
+            final authRepo = sl.isRegistered<AuthRepository>()
+                ? sl<AuthRepository>()
+                : AuthRepositoryImpl();
+            final user = await authRepo.restoreSession();
+            if (user != null) {
+              targetRoute = AppRoutes.dashboard;
+            } else {
+              targetRoute = AppRoutes.login;
+            }
+          } catch (_) {
+            targetRoute = AppRoutes.login;
+          }
+        } else {
+          targetRoute = AppRoutes.dashboard;
+        }
       } else if (!LocalStorageService.hasSelectedLanguage()) {
         targetRoute = AppRoutes.languageSelection;
       } else if (!LocalStorageService.hasCompletedOnboarding()) {
@@ -66,6 +82,7 @@ class _SplashScreenState extends State<SplashScreen>
         targetRoute = AppRoutes.login;
       }
 
+      if (!mounted) return;
       Navigator.of(context).pushReplacementNamed(targetRoute);
     });
   }

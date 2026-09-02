@@ -80,7 +80,7 @@ class CustomBottomNav extends StatelessWidget {
                             size: 24,
                             color: isSelected
                                 ? (isDark ? AppColors.primaryAccent : AppColors.primaryDark)
-                                : (isDark ? const Color(0xFF64748B) : AppColors.textMuted),
+                                : (isDark ? const Color(0xFF94A3B8) : AppColors.textMuted),
                           ),
                         ),
                         const SizedBox(height: 3),

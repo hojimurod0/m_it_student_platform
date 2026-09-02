@@ -21,7 +21,8 @@ class StudentProfile {
     required this.overallScore,
     this.coins = 0,
     this.homeworkPercent = 0,
-    this.parentPhone = '+998 99 876 54 32',
+    this.parentName = '',
+    this.parentPhone = '',
     this.email = 'student@mit-academy.uz',
     this.gender = 'male',
     this.avatarIndex = 0,
@@ -49,7 +50,9 @@ class StudentProfile {
   /// Vazifa topshirish foizi (progress API dan)
   @JsonKey(defaultValue: 0)
   final int homeworkPercent;
-  @JsonKey(defaultValue: '+998 99 876 54 32')
+  @JsonKey(defaultValue: '')
+  final String parentName;
+  @JsonKey(defaultValue: '')
   final String parentPhone;
   @JsonKey(defaultValue: 'student@mit-academy.uz')
   final String email;
@@ -103,6 +106,7 @@ class StudentProfile {
     String? id,
     String? fullName,
     String? phone,
+    String? parentName,
     String? parentPhone,
     String? email,
     String? gender,
@@ -139,6 +143,7 @@ class StudentProfile {
       overallScore: overallScore ?? this.overallScore,
       coins: coins ?? this.coins,
       homeworkPercent: homeworkPercent ?? this.homeworkPercent,
+      parentName: parentName ?? this.parentName,
       parentPhone: parentPhone ?? this.parentPhone,
       email: email ?? this.email,
       gender: gender ?? this.gender,
@@ -184,7 +189,7 @@ class StudentProfile {
         (json['attendance_rate'] as num?)?.toInt() ??
         (json['attendance'] as num?)?.toInt() ??
         (json['davomat'] as num?)?.toInt() ??
-        98;
+        0;
     sanitized['overallScore'] = (json['overallScore'] as num?)?.toInt() ??
         (json['overall_score'] as num?)?.toInt() ??
         (json['gpa'] as num?)?.toInt() ??
@@ -193,8 +198,28 @@ class StudentProfile {
         (json['progress'] as num?)?.toInt() ??
         (json['rating'] as num?)?.toInt() ??
         (json['ozlashtirish'] as num?)?.toInt() ??
-        95;
-    sanitized['parentPhone'] = json['parent_phone']?.toString() ?? json['parentPhone']?.toString() ?? '+998 99 876 54 32';
+        0;
+
+    // Backend parent name & phone parsing
+    final rawParentPhone = json['parent_phone'] ??
+        json['parent_phone_number'] ??
+        json['parents_phone'] ??
+        json['father_phone'] ??
+        json['mother_phone'] ??
+        json['parentPhone'];
+    sanitized['parentPhone'] = (rawParentPhone != null && rawParentPhone.toString() != 'null')
+        ? rawParentPhone.toString().trim()
+        : '';
+
+    final rawParentName = json['parent_name'] ??
+        json['parents_name'] ??
+        json['father_name'] ??
+        json['mother_name'] ??
+        json['parentName'];
+    sanitized['parentName'] = (rawParentName != null && rawParentName.toString() != 'null')
+        ? rawParentName.toString().trim()
+        : '';
+
     sanitized['email'] = json['email']?.toString() ?? 'student@mit-academy.uz';
     sanitized['gender'] = json['gender']?.toString() ?? 'male';
     sanitized['avatarIndex'] = (json['avatarIndex'] as num?)?.toInt() ?? 0;

@@ -196,7 +196,7 @@ class Lesson {
       sanitized['courseCode'] = sanitized['code']?.toString() ?? sanitized['schedule']?.toString() ?? '';
     }
 
-    sanitized['room'] = resolveRoomString(sanitized['room'] ?? sanitized['room_name'], json);
+    sanitized['room'] = resolveRoomString(sanitized['room_name'] ?? sanitized['room'], json);
 
     if (sanitized['building'] == null) {
       sanitized['building'] = sanitized['branch_name']?.toString() ?? '';
@@ -303,7 +303,7 @@ class StudentGroup {
     sanitized['mentor'] = json['teacher_name']?.toString() ?? json['mentor']?.toString() ?? '';
     sanitized['mentorRole'] = json['mentorRole']?.toString() ?? 'Mentor';
     sanitized['schedule'] = json['schedule_label']?.toString() ?? json['schedule']?.toString() ?? '';
-    sanitized['room'] = resolveRoomString(json['room'] ?? json['room_name'], json);
+    sanitized['room'] = resolveRoomString(json['room_name'] ?? json['room'], json);
     sanitized['currentModule'] = json['description']?.toString() ?? json['currentModule']?.toString() ?? '';
     sanitized['studentsCount'] = (json['student_count'] as num?)?.toInt() ?? (json['studentsCount'] as num?)?.toInt() ?? 1;
     sanitized['isPrimary'] = json['is_active'] == true || json['isPrimary'] == true || true;
@@ -348,7 +348,7 @@ class TopicAttachment {
   Map<String, dynamic> toJson() => _$TopicAttachmentToJson(this);
 }
 
-@JsonSerializable(explicitToJson: true)
+@JsonSerializable(explicitToJson: true, createFactory: false)
 class TopicModel {
   const TopicModel({
     required this.id,
@@ -364,6 +364,11 @@ class TopicModel {
     this.attachments = const [],
     this.submittedUrl,
     this.score,
+    this.homeworkId,
+    this.homeworkTitle,
+    this.homeworkDescription,
+    this.order = 0,
+    this.createdAt,
   });
 
   final String id;
@@ -385,6 +390,13 @@ class TopicModel {
   final List<TopicAttachment> attachments;
   final String? submittedUrl;
   final int? score;
+  final String? homeworkId;
+  final String? homeworkTitle;
+  final String? homeworkDescription;
+  @JsonKey(defaultValue: 0)
+  final int order;
+  @JsonKey(name: 'created_at')
+  final String? createdAt;
 
   String get statusLabel {
     switch (status) {
@@ -417,31 +429,89 @@ class TopicModel {
       }
     }
 
-    // Dates
-    sanitized['givenDate'] = json['givenDate']?.toString() ?? json['lesson_date']?.toString() ?? json['created_at']?.toString() ?? '';
-    sanitized['deadline'] = json['deadline']?.toString() ?? '';
+    // Dates & Formatting
+    final rawDate = json['lesson_date']?.toString() ??
+        json['date']?.toString() ??
+        json['created_at']?.toString() ??
+        json['givenDate']?.toString();
+    if (rawDate != null && rawDate.isNotEmpty && rawDate != 'null') {
+      try {
+        final dt = DateTime.parse(rawDate).toLocal();
+        const months = [
+          'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
+          'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'
+        ];
+        sanitized['givenDate'] = '${dt.day}-${months[dt.month - 1]} ${dt.year}';
+      } catch (_) {
+        sanitized['givenDate'] = rawDate;
+      }
+    } else {
+      sanitized['givenDate'] = '';
+    }
+
+    final rawDeadline = json['deadline']?.toString();
+    if (rawDeadline != null && rawDeadline.isNotEmpty && rawDeadline != 'null') {
+      try {
+        final dt = DateTime.parse(rawDeadline).toLocal();
+        const months = [
+          'yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun',
+          'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'
+        ];
+        final hour = dt.hour.toString().padLeft(2, '0');
+        final minute = dt.minute.toString().padLeft(2, '0');
+        sanitized['deadline'] = '${dt.day}-${months[dt.month - 1]}, $hour:$minute';
+      } catch (_) {
+        sanitized['deadline'] = rawDeadline;
+      }
+    } else {
+      sanitized['deadline'] = '';
+    }
     sanitized['remainingTime'] = json['remainingTime']?.toString() ?? '';
     sanitized['isNewHomework'] = json['isNewHomework'] == true || json['is_new'] == true;
 
-    // Materials / attachments
-    if (sanitized['attachments'] == null && json['materials'] is List) {
-      sanitized['attachments'] = (json['materials'] as List).map((m) {
-        if (m is Map<String, dynamic>) {
-          return {
-            'name': m['name']?.toString() ?? m['title']?.toString() ?? 'Fayl',
-            'size': m['size']?.toString() ?? 'PDF',
-            'downloadUrl': m['file_url']?.toString() ?? m['url']?.toString() ?? m['downloadUrl']?.toString() ?? '',
-          };
+    final attachmentsList = <TopicAttachment>[];
+    if (sanitized['attachments'] is List) {
+      for (final att in sanitized['attachments']) {
+        if (att is Map<String, dynamic>) {
+          attachmentsList.add(TopicAttachment.fromJson(att));
+        } else if (att is TopicAttachment) {
+          attachmentsList.add(att);
         }
-        return {
-          'name': 'Material',
-          'size': 'Fayl',
-          'downloadUrl': m.toString(),
-        };
-      }).toList();
+      }
     }
 
-    return _$TopicModelFromJson(sanitized);
+    TopicStatus statusEnum;
+    final statusStr = sanitized['status']?.toString();
+    if (statusStr == 'done') {
+      statusEnum = TopicStatus.done;
+    } else if (statusStr == 'notSubmitted') {
+      statusEnum = TopicStatus.notSubmitted;
+    } else if (statusStr == 'notGiven') {
+      statusEnum = TopicStatus.notGiven;
+    } else {
+      statusEnum = TopicStatus.notDone;
+    }
+
+    return TopicModel(
+      id: sanitized['id']?.toString() ?? '',
+      courseId: sanitized['courseId']?.toString() ?? '',
+      title: sanitized['title']?.toString() ?? 'Dars mavzusi',
+      status: statusEnum,
+      givenDate: sanitized['givenDate']?.toString() ?? '',
+      deadline: sanitized['deadline']?.toString() ?? '',
+      remainingTime: sanitized['remainingTime']?.toString() ?? '',
+      isNewHomework: sanitized['isNewHomework'] == true,
+      description: sanitized['description']?.toString() ?? '',
+      codeSnippet: sanitized['codeSnippet']?.toString(),
+      attachments: attachmentsList,
+      submittedUrl: sanitized['submittedUrl']?.toString(),
+      score: sanitized['score'] as int?,
+      homeworkId: sanitized['homeworkId']?.toString(),
+      homeworkTitle: sanitized['homeworkTitle']?.toString(),
+      homeworkDescription: sanitized['homeworkDescription']?.toString(),
+      order: (sanitized['order'] as num?)?.toInt() ?? 0,
+      createdAt: sanitized['createdAt']?.toString(),
+    );
   }
 
   Map<String, dynamic> toJson() => _$TopicModelToJson(this);
@@ -460,6 +530,11 @@ class TopicModel {
     List<TopicAttachment>? attachments,
     String? submittedUrl,
     int? score,
+    String? homeworkId,
+    String? homeworkTitle,
+    String? homeworkDescription,
+    int? order,
+    String? createdAt,
   }) {
     return TopicModel(
       id: id ?? this.id,
@@ -475,6 +550,11 @@ class TopicModel {
       attachments: attachments ?? this.attachments,
       submittedUrl: submittedUrl ?? this.submittedUrl,
       score: score ?? this.score,
+      homeworkId: homeworkId ?? this.homeworkId,
+      homeworkTitle: homeworkTitle ?? this.homeworkTitle,
+      homeworkDescription: homeworkDescription ?? this.homeworkDescription,
+      order: order ?? this.order,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 }
@@ -522,39 +602,78 @@ class ExamModel {
 
 /// Helper method to safely extract and format room information
 String resolveRoomString(dynamic rawRoom, [Map<String, dynamic>? json]) {
-  if (rawRoom != null) {
-    if (rawRoom is String && rawRoom.trim().isNotEmpty) {
-      final trimmed = rawRoom.trim();
-      if (RegExp(r'^\d+$').hasMatch(trimmed)) return 'Xona $trimmed';
-      return trimmed;
+  // 1. Prioritize explicit human-readable room name from json
+  if (json != null) {
+    final explicitName = json['room_name'] ??
+        json['roomName'] ??
+        json['classroom_name'] ??
+        json['xona_nomi'] ??
+        json['xona_nom'] ??
+        json['auditorium_name'] ??
+        json['cabinet_name'];
+    if (explicitName != null && explicitName.toString().trim().isNotEmpty) {
+      final str = explicitName.toString().trim();
+      if (str.toLowerCase() != 'null' && str.toLowerCase() != 'none') {
+        return RegExp(r'^\d+$').hasMatch(str) ? '$str-xona' : str;
+      }
     }
-    if (rawRoom is num) return 'Xona $rawRoom';
-    if (rawRoom is Map) {
-      final name = rawRoom['name'] ??
-          rawRoom['title'] ??
-          rawRoom['room_name'] ??
-          rawRoom['room_number'] ??
-          rawRoom['room'] ??
-          rawRoom['number'] ??
-          rawRoom['classroom'];
-      if (name != null && name.toString().trim().isNotEmpty) {
-        final nameStr = name.toString().trim();
-        return RegExp(r'^\d+$').hasMatch(nameStr) ? 'Xona $nameStr' : nameStr;
+    if (json['group'] is Map) {
+      final gRoom = resolveRoomString(null, Map<String, dynamic>.from(json['group'] as Map));
+      if (gRoom.isNotEmpty) return gRoom;
+    }
+    if (json['lesson'] is Map) {
+      final lRoom = resolveRoomString(null, Map<String, dynamic>.from(json['lesson'] as Map));
+      if (lRoom.isNotEmpty) return lRoom;
+    }
+    if (json['schedule'] is List && (json['schedule'] as List).isNotEmpty) {
+      for (final s in (json['schedule'] as List)) {
+        if (s is Map) {
+          final sRoom = resolveRoomString(s['room_name'] ?? s['room'] ?? s['classroom'], Map<String, dynamic>.from(s));
+          if (sRoom.isNotEmpty) return sRoom;
+        }
       }
     }
   }
+
+  // 2. Check rawRoom if provided
+  if (rawRoom != null) {
+    if (rawRoom is String && rawRoom.trim().isNotEmpty) {
+      final trimmed = rawRoom.trim();
+      if (trimmed.toLowerCase() == 'null' || trimmed.toLowerCase() == 'none') return '';
+      if (RegExp(r'^\d+$').hasMatch(trimmed)) return '$trimmed-xona';
+      return trimmed;
+    }
+    if (rawRoom is num) return '$rawRoom-xona';
+    if (rawRoom is Map) {
+      final name = rawRoom['room_name'] ??
+          rawRoom['name'] ??
+          rawRoom['title'] ??
+          rawRoom['xona_nomi'] ??
+          rawRoom['room_number'] ??
+          rawRoom['number'] ??
+          rawRoom['room'] ??
+          rawRoom['classroom'] ??
+          rawRoom['label'] ??
+          rawRoom['code'] ??
+          rawRoom['xona'];
+      if (name != null && name.toString().trim().isNotEmpty) {
+        final nameStr = name.toString().trim();
+        return RegExp(r'^\d+$').hasMatch(nameStr) ? '$nameStr-xona' : nameStr;
+      }
+    }
+  }
+
+  // 3. Fallback checks on other keys
   if (json != null) {
-    final fallback = json['room'] ??
-        json['room_name'] ??
-        json['room_number'] ??
-        json['classroom'] ??
-        json['classroom_name'] ??
+    final fallback = json['classroom'] ??
         json['auditorium'] ??
-        json['auditory'] ??
         json['cabinet'] ??
         json['xona'] ??
-        json['xona_nomi'] ??
-        json['xona_raqami'];
+        json['room_details'] ??
+        json['class_room'] ??
+        json['room'] ??
+        json['hall'] ??
+        json['location'];
     if (fallback != null && fallback != rawRoom) {
       return resolveRoomString(fallback);
     }

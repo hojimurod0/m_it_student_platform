@@ -1,10 +1,10 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
 import 'package:m_it_student_platform/core/utils/haptics.dart';
-import 'package:m_it_student_platform/core/widgets/ui/mit_toast.dart';
 
-/// Educational Resources & IT Library Modal
+/// Gamification-style Animated In-Progress Resources Modal
 class ResourcesLibraryModal extends StatefulWidget {
   const ResourcesLibraryModal({super.key});
 
@@ -21,364 +21,291 @@ class ResourcesLibraryModal extends StatefulWidget {
   State<ResourcesLibraryModal> createState() => _ResourcesLibraryModalState();
 }
 
-class _ResourcesLibraryModalState extends State<ResourcesLibraryModal> {
-  int _selectedCategoryIndex = 0;
+class _ResourcesLibraryModalState extends State<ResourcesLibraryModal>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
 
-  final List<Map<String, dynamic>> _resources = const [
-    {
-      'title': 'Flutter & Dart: To\'liq Cheat-Sheet 2026',
-      'category': 'Flutter',
-      'size': '4.2 MB',
-      'type': 'PDF',
-      'icon': Icons.picture_as_pdf_rounded,
-      'color': Color(0xFFEF4444),
-      'desc': 'Eng ko\'p ishlatiladigan vidjetlar, metodlar va Lifecycle qoidalari.',
-    },
-    {
-      'title': 'BLoC State Management: Amaliy Namunalar',
-      'category': 'Flutter',
-      'size': '8.5 MB',
-      'type': 'ZIP / Repo',
-      'icon': Icons.folder_zip_rounded,
-      'color': Color(0xFF3B82F6),
-      'desc': 'Cubit, Bloc va Clean Architecture uchun tayyor namuna kodi.',
-    },
-    {
-      'title': 'REST API & Postman To\'plami',
-      'category': 'Backend',
-      'size': '1.8 MB',
-      'type': 'JSON',
-      'icon': Icons.code_rounded,
-      'color': Color(0xFF8B5CF6),
-      'desc': 'Barcha API endpointlar va so\'rovlar to\'plami kolleksiyasi.',
-    },
-    {
-      'title': 'Clean Architecture & SOLID tamoyillari',
-      'category': 'Dasturlash',
-      'size': '12.1 MB',
-      'type': 'PPTX',
-      'icon': Icons.slideshow_rounded,
-      'color': Color(0xFFF59E0B),
-      'desc': 'Dastur kodini toza va tartibli tuzish bo\'yicha dars taqdimoti.',
-    },
-    {
-      'title': 'Git & GitHub: Buyruqlar qo\'llanmasi',
-      'category': 'Git & DevOps',
-      'size': '2.4 MB',
-      'type': 'PDF',
-      'icon': Icons.terminal_rounded,
-      'color': Color(0xFF10B981),
-      'desc': 'Branch, commit, pull request va merge buyruqlari cheat-sheet.',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final categories = [
-      context.tr('all'),
-      'Flutter',
-      'Backend',
-      context.tr('programming'),
-      'Git & DevOps',
-    ];
-
-    final filteredResources = _selectedCategoryIndex == 0
-        ? _resources
-        : _resources.where((r) {
-            final cat = r['category'];
-            if (_selectedCategoryIndex == 1) return cat == 'Flutter';
-            if (_selectedCategoryIndex == 2) return cat == 'Backend';
-            if (_selectedCategoryIndex == 3) return cat == 'Dasturlash';
-            if (_selectedCategoryIndex == 4) return cat == 'Git & DevOps';
-            return true;
-          }).toList();
+    final sheetBg = isDark ? const Color(0xFF0F172A) : Colors.white;
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: sheetBg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border.all(color: borderColor),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        14,
+        24,
+        MediaQuery.of(context).padding.bottom + 24,
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Drag handle
-          Container(
-            margin: const EdgeInsets.only(top: 12, bottom: 10),
-            width: 44,
-            height: 4.5,
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
-              borderRadius: BorderRadius.circular(10),
+          // ── Drag Handle ──
+          Center(
+            child: Container(
+              width: 42,
+              height: 4.5,
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           ),
+          const SizedBox(height: 20),
 
-          // Header with safe flexible layout (No RenderFlex overflow)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 12, 12),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(9),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: isDark ? 0.25 : 0.15),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(
-                    Icons.library_books_rounded,
-                    color: AppColors.secondary,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        context.tr('libraryAndResources'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: theme.colorScheme.onSurface,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        context.tr('librarySubtitle'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-          ),
-
-          // Category Chips Bar
+          // ── Animated Clash of Clans Double Hammers ──
           SizedBox(
-            height: 34,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: categories.length,
-              separatorBuilder: (_, index) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                final cat = categories[index];
-                final isSelected = index == _selectedCategoryIndex;
-                return GestureDetector(
-                  onTap: () {
-                    AppHaptics.selection();
-                    setState(() => _selectedCategoryIndex = index);
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? (isDark ? AppColors.accentLime : AppColors.brandNavy)
-                          : (isDark ? AppColors.darkSurfaceSecondary : const Color(0xFFF1F5F9)),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isSelected
-                            ? Colors.transparent
-                            : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                      ),
-                    ),
-                    child: Text(
-                      cat,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                        color: isSelected
-                            ? (isDark ? const Color(0xFF0F172A) : Colors.white)
-                            : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
+            width: 140,
+            height: 115,
+            child: AnimatedBuilder(
+              animation: _animController,
+              builder: (context, _) {
+                final t = _animController.value;
+                final strikeFactor = math.sin(t * math.pi * 2);
 
-          const SizedBox(height: 12),
-          const Divider(height: 1),
+                final leftAngle = -0.48 + (strikeFactor * 0.32);
+                final rightAngle = 0.48 - (strikeFactor * 0.32);
+                final isStriking = (strikeFactor > 0.85);
 
-          // Resources List
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-              physics: const BouncingScrollPhysics(),
-              itemCount: filteredResources.length,
-              itemBuilder: (context, index) {
-                final item = filteredResources[index];
-                final color = item['color'] as Color;
-
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkSurfaceSecondary : Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isDark
-                            ? Colors.black.withValues(alpha: 0.2)
-                            : const Color(0xFF64748B).withValues(alpha: 0.04),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: color.withValues(alpha: 0.3),
-                                width: 0.8,
-                              ),
-                            ),
-                            child: Icon(
-                              item['icon'] as IconData,
-                              color: color,
-                              size: 22,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: color.withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        item['type'] as String,
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w800,
-                                          color: color,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      item['size'] as String,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: isDark ? const Color(0xFF94A3B8) : AppColors.textMuted,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  item['title'] as String,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
-                                    color: theme.colorScheme.onSurface,
-                                    height: 1.25,
-                                  ),
-                                ),
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Impact Spark Glow
+                    if (isStriking)
+                      Positioned(
+                        top: 16,
+                        child: Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                const Color(0xFFFFD700).withValues(alpha: 0.9),
+                                const Color(0xFFFFA500).withValues(alpha: 0.3),
+                                Colors.transparent,
                               ],
                             ),
                           ),
-                        ],
-                      ),
-                      if (item['desc'] != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          item['desc'] as String,
-                          style: TextStyle(
-                            fontSize: 12,
-                            height: 1.35,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 42,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            AppHaptics.light();
-                            MitToast.success(
-                              context,
-                              '"${item['title']}" muvaffaqiyatli yuklab olindi',
-                            );
-                          },
-                          icon: const Icon(Icons.download_rounded, size: 18),
-                          label: const Text(
-                            'Yuklab olish',
-                            maxLines: 1,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isDark
-                                ? AppColors.accentLime.withValues(alpha: 0.18)
-                                : AppColors.primarySurface,
-                            foregroundColor: isDark ? AppColors.accentLime : AppColors.primary,
-                            elevation: 0,
-                            shadowColor: Colors.transparent,
-                            side: BorderSide(
-                              color: isDark
-                                  ? AppColors.accentLime.withValues(alpha: 0.4)
-                                  : AppColors.primary.withValues(alpha: 0.25),
-                              width: 1,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
                         ),
                       ),
-                    ],
-                  ),
+
+                    // Left Hammer
+                    Positioned(
+                      left: 16,
+                      bottom: 10,
+                      child: Transform.rotate(
+                        angle: leftAngle,
+                        alignment: Alignment.bottomLeft,
+                        child: const _ClashHammer(isFacingRight: true),
+                      ),
+                    ),
+
+                    // Right Hammer
+                    Positioned(
+                      right: 16,
+                      bottom: 10,
+                      child: Transform.rotate(
+                        angle: rightAngle,
+                        alignment: Alignment.bottomRight,
+                        child: const _ClashHammer(isFacingRight: false),
+                      ),
+                    ),
+                  ],
                 );
               },
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // ── In-Progress Title ──
+          Text(
+            context.tr('inProgressTitle'),
+            style: TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.3,
+              color: textColor,
+            ),
+          ),
+          const SizedBox(height: 6),
+
+          Text(
+            'IT Kutubxona va Resurslar bo\'limi tez kunda ishga tushadi.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: subtitleColor,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ── Close Button ──
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                AppHaptics.light();
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isDark ? AppColors.accentLime : AppColors.brandNavy,
+                foregroundColor: isDark ? Colors.black : Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 0,
+              ),
+              child: Text(
+                context.tr('close'),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+              ),
             ),
           ),
         ],
       ),
     );
   }
+}
+
+class _ClashHammer extends StatelessWidget {
+  const _ClashHammer({required this.isFacingRight});
+
+  final bool isFacingRight;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 58,
+      height: 72,
+      child: CustomPaint(
+        painter: _HammerPainter(isFacingRight: isFacingRight),
+      ),
+    );
+  }
+}
+
+class _HammerPainter extends CustomPainter {
+  const _HammerPainter({required this.isFacingRight});
+
+  final bool isFacingRight;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    // 1. Wooden Handle
+    final handlePaint = Paint()
+      ..color = const Color(0xFF8D5B28)
+      ..style = PaintingStyle.fill;
+
+    final handleHighlight = Paint()
+      ..color = const Color(0xFFA76E36)
+      ..style = PaintingStyle.fill;
+
+    final handlePath = Path();
+    handlePath.addRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.42, h * 0.22, w * 0.16, h * 0.72),
+        const Radius.circular(4),
+      ),
+    );
+    canvas.drawPath(handlePath, handlePaint);
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.44, h * 0.25, w * 0.05, h * 0.65),
+        const Radius.circular(2),
+      ),
+      handleHighlight,
+    );
+
+    final gripPaint = Paint()
+      ..color = const Color(0xFF5A3918)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    canvas.drawLine(Offset(w * 0.42, h * 0.60), Offset(w * 0.58, h * 0.65), gripPaint);
+    canvas.drawLine(Offset(w * 0.42, h * 0.72), Offset(w * 0.58, h * 0.77), gripPaint);
+
+    // 2. Metallic Hammer Head
+    final steelPaint = Paint()
+      ..color = const Color(0xFF475569)
+      ..style = PaintingStyle.fill;
+
+    final steelLight = Paint()
+      ..color = const Color(0xFF94A3B8)
+      ..style = PaintingStyle.fill;
+
+    final steelDark = Paint()
+      ..color = const Color(0xFF1E293B)
+      ..style = PaintingStyle.fill;
+
+    final headRect = Rect.fromCenter(
+      center: Offset(w * 0.50, h * 0.18),
+      width: w * 0.88,
+      height: h * 0.28,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(headRect, const Radius.circular(5)),
+      steelPaint,
+    );
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.10, h * 0.06, w * 0.80, h * 0.08),
+        const Radius.circular(3),
+      ),
+      steelLight,
+    );
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.10, h * 0.24, w * 0.80, h * 0.08),
+        const Radius.circular(3),
+      ),
+      steelDark,
+    );
+
+    final goldPaint = Paint()
+      ..color = const Color(0xFFF59E0B)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.38, h * 0.05, w * 0.24, h * 0.30),
+        const Radius.circular(2),
+      ),
+      goldPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _HammerPainter oldDelegate) => false;
 }

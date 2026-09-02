@@ -13,6 +13,7 @@ class AttendanceRecord {
   final AttendanceType type;
   final String? groupName;
   final String? note;
+  final bool isPresent;
 
   const AttendanceRecord({
     required this.id,
@@ -22,11 +23,11 @@ class AttendanceRecord {
     this.type = AttendanceType.faceId,
     this.groupName,
     this.note,
+    this.isPresent = true,
   });
 
   bool get hasCheckin => checkin != null && checkin!.isNotEmpty;
   bool get hasCheckout => checkout != null && checkout!.isNotEmpty;
-  bool get isPresent => hasCheckin;
 
   AttendanceRecord copyWith({
     String? id,
@@ -36,6 +37,7 @@ class AttendanceRecord {
     AttendanceType? type,
     String? groupName,
     String? note,
+    bool? isPresent,
   }) {
     return AttendanceRecord(
       id: id ?? this.id,
@@ -45,6 +47,7 @@ class AttendanceRecord {
       type: type ?? this.type,
       groupName: groupName ?? this.groupName,
       note: note ?? this.note,
+      isPresent: isPresent ?? this.isPresent,
     );
   }
 

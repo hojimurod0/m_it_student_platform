@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/localization/app_strings.dart';
+import 'package:m_it_student_platform/core/network/app_config.dart';
 import 'package:m_it_student_platform/core/widgets/empty_state_view.dart';
 import 'package:m_it_student_platform/core/widgets/section_header.dart';
 import 'package:m_it_student_platform/core/di/injection_container.dart';
@@ -22,8 +23,12 @@ class PaymentsScreen extends StatefulWidget {
 class _PaymentsScreenState extends State<PaymentsScreen>
     with AutomaticKeepAliveClientMixin {
   late final PaymentsRepository _paymentsRepo;
-  PaymentSummary _summary = MockPaymentsRepository.paymentSummary;
-  List<PaymentTransaction> _history = MockPaymentsRepository.paymentHistory;
+  PaymentSummary _summary = AppConfig.useMockData
+      ? MockPaymentsRepository.paymentSummary
+      : const PaymentSummary();
+  List<PaymentTransaction> _history = AppConfig.useMockData
+      ? MockPaymentsRepository.paymentHistory
+      : const [];
   int _selectedFilterIndex = 0; // 0: All, 1: Paid, 2: Pending
   bool _isLoading = true;
 
@@ -53,7 +58,11 @@ class _PaymentsScreenState extends State<PaymentsScreen>
         );
         historyResult.when(
           success: (data) => _history = data,
-          failure: (_) {},
+          failure: (_) {
+            if (!AppConfig.useMockData) {
+              _history = const [];
+            }
+          },
         );
         _isLoading = false;
       });

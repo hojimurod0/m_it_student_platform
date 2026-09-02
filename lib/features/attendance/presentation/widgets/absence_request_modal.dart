@@ -189,7 +189,11 @@ class _AbsenceRequestModalState extends State<AbsenceRequestModal> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.calendar_month_rounded, size: 18, color: AppColors.primary),
+                      Icon(
+                        Icons.calendar_month_rounded,
+                        size: 18,
+                        color: isDark ? AppColors.accentLime : AppColors.brandNavy,
+                      ),
                       const SizedBox(width: 10),
                       Text(
                         '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}',
@@ -202,10 +206,10 @@ class _AbsenceRequestModalState extends State<AbsenceRequestModal> {
                       const Spacer(),
                       Text(
                         context.tr('changeDate'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
+                          color: isDark ? AppColors.accentLime : AppColors.brandNavy,
                         ),
                       ),
                     ],
@@ -320,7 +324,9 @@ class _AbsenceRequestModalState extends State<AbsenceRequestModal> {
                       Icon(
                         _attachedDoc != null ? Icons.check_circle_rounded : Icons.attach_file_rounded,
                         size: 20,
-                        color: _attachedDoc != null ? AppColors.success : AppColors.primary,
+                        color: _attachedDoc != null
+                            ? AppColors.success
+                            : (isDark ? AppColors.accentLime : AppColors.brandNavy),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -354,18 +360,21 @@ class _AbsenceRequestModalState extends State<AbsenceRequestModal> {
                 child: ElevatedButton(
                   onPressed: _isSubmitting ? null : _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    backgroundColor: isDark ? AppColors.accentLime : AppColors.brandNavy,
+                    foregroundColor: isDark ? AppColors.brandNavy : Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
                   child: _isSubmitting
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: isDark ? AppColors.brandNavy : Colors.white,
+                          ),
                         )
                       : Text(
                           context.tr('sendAbsenceRequest'),

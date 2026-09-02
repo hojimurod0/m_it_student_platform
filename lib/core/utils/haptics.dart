@@ -23,6 +23,10 @@ class AppHaptics {
     HapticFeedback.mediumImpact();
   }
 
+  static void warning() {
+    HapticFeedback.mediumImpact();
+  }
+
   static void error() {
     HapticFeedback.vibrate();
   }

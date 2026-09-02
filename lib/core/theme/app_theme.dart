@@ -103,6 +103,9 @@ class AppTheme {
         selectionColor: Color(0xFFE2E8F0),
         selectionHandleColor: Color(0xFF0F172A),
       ),
+      iconTheme: const IconThemeData(
+        color: AppColors.textPrimary,
+      ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
@@ -242,6 +245,9 @@ class AppTheme {
         cursorColor: Colors.white,
         selectionColor: Color(0xFF334155),
         selectionHandleColor: Colors.white,
+      ),
+      iconTheme: const IconThemeData(
+        color: AppColors.darkTextPrimary,
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,

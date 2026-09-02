@@ -155,7 +155,7 @@ class _AllAnnouncementsModalState extends State<AllAnnouncementsModal> {
                               Icons.notifications_none_rounded,
                               size: 48,
                               color: isDark
-                                  ? const Color(0xFF64748B)
+                                  ? const Color(0xFF94A3B8)
                                   : AppColors.textMuted,
                             ),
                             const SizedBox(height: 12),

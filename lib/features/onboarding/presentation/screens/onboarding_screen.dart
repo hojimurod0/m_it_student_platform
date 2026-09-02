@@ -160,9 +160,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           ),
                         ),
                         child: const Text(
-                          'M-IT ACADEMY',
+                          'M-IT UNO',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 1.0,
                             color: Color(0xFF6B8B00),
@@ -421,7 +421,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       case AppLanguage.ru:
         return const [
           _OnboardingData(
-            title: "Добро пожаловать в M-IT",
+            title: "Добро пожаловать в M-IT UNO",
             description:
                 "Современный учебный IT-центр — всё для студентов и родителей в одном удобном приложении.",
             imagePath: 'assets/images/onboarding_1.jpg',
@@ -442,7 +442,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       case AppLanguage.en:
         return const [
           _OnboardingData(
-            title: "Welcome to M-IT",
+            title: "Welcome to M-IT UNO",
             description:
                 "Modern IT learning academy — everything for students and parents in one convenient app.",
             imagePath: 'assets/images/onboarding_1.jpg',
@@ -463,7 +463,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       case AppLanguage.uz:
         return const [
           _OnboardingData(
-            title: "M-IT ga xush kelibsiz",
+            title: "M-IT UNO ga xush kelibsiz",
             description:
                 "Zamonaviy IT ta'lim markazi — talabalar va ota-onalar uchun bitta qulay ilovada.",
             imagePath: 'assets/images/onboarding_1.jpg',

@@ -151,17 +151,9 @@ class _SummaryHeader extends StatelessWidget {
           Container(width: 1, height: 50, color: Colors.white24),
           Expanded(
             child: _StatItem(
-              label: context.tr('totalCoins'),
-              value: '🪙 ${state.totalCoins}',
-              icon: Icons.stars_rounded,
-            ),
-          ),
-          Container(width: 1, height: 50, color: Colors.white24),
-          Expanded(
-            child: _StatItem(
-              label: context.tr('lessons'),
-              value: '${state.grades.length}',
-              icon: Icons.school_rounded,
+              label: 'Vazifalar',
+              value: '${state.grades.length} ta',
+              icon: Icons.assignment_turned_in_rounded,
             ),
           ),
         ],
@@ -188,7 +180,7 @@ class _StatItem extends StatelessWidget {
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w800,
-            fontSize: 15,
+            fontSize: 16,
           ),
         ),
         const SizedBox(height: 2),
@@ -284,35 +276,13 @@ class _GradeCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Text(
-                        '${grade.score}/${grade.maxScore}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (grade.coins > 0) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryAccent.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            '🪙 +${grade.coins}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.accentLimeDark,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                  Text(
+                    'Baho: ${grade.score.toStringAsFixed(0)} / ${grade.maxScore.toStringAsFixed(0)} ball',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   if (grade.mentorComment != null && grade.mentorComment!.isNotEmpty) ...[
                     const SizedBox(height: 6),
@@ -367,18 +337,26 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 56, color: AppColors.textMuted),
+            Icon(
+              Icons.cloud_off_rounded,
+              size: 56,
+              color: isDark ? const Color(0xFF94A3B8) : AppColors.textMuted,
+            ),
             const SizedBox(height: 16),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(
+                color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
+              ),
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
@@ -386,8 +364,8 @@ class _ErrorView extends StatelessWidget {
               icon: const Icon(Icons.refresh_rounded),
               label: Text(context.tr('retry')),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+                backgroundColor: isDark ? AppColors.accentLime : AppColors.brandNavy,
+                foregroundColor: isDark ? AppColors.brandNavy : Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
@@ -405,15 +383,24 @@ class _EmptyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.assignment_outlined, size: 56, color: AppColors.textMuted),
+          Icon(
+            Icons.assignment_outlined,
+            size: 56,
+            color: isDark ? const Color(0xFF94A3B8) : AppColors.textMuted,
+          ),
           const SizedBox(height: 16),
           Text(
             message,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
+            style: TextStyle(
+              color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
+              fontSize: 15,
+            ),
           ),
         ],
       ),
