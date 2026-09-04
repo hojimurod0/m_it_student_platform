@@ -104,7 +104,7 @@ void main() {
 
     // 4. Verify Home Screen is active in Uzbek with IT courses & Student Name
     expect(find.text('Flutter Mobile Development'), findsWidgets);
-    expect(find.text('Bugungi darslar'), findsWidgets);
+    expect(find.text("IT Ko'rsatkichlar"), findsWidgets);
     expect(find.text('Asosiy'), findsOneWidget);
     expect(find.text('John Smith'), findsOneWidget);
 
@@ -269,7 +269,7 @@ void main() {
 
     // Verify Home tab renders with 0 errors on small screen
     expect(find.text('Flutter Mobile Development'), findsWidgets);
-    expect(find.text('Bugungi darslar'), findsOneWidget);
+    expect(find.text("IT Ko'rsatkichlar"), findsOneWidget);
 
     // Verify Tab switching
     await tester.tap(find.byIcon(Icons.menu_book_outlined));
