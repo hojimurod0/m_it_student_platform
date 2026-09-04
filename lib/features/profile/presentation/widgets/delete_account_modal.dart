@@ -7,7 +7,7 @@ import 'package:m_it_student_platform/core/utils/haptics.dart';
 import 'package:m_it_student_platform/core/widgets/ui/app_feedback.dart';
 import 'package:m_it_student_platform/features/profile/domain/repositories/profile_repository.dart';
 
-/// Clean, simple confirmation modal for deleting the user's account.
+/// Clean, simple confirmation modal for requesting deletion of the user's account via admin review.
 class DeleteAccountModal extends StatefulWidget {
   const DeleteAccountModal({super.key});
 
@@ -115,21 +115,21 @@ class _DeleteAccountModalState extends State<DeleteAccountModal> {
             ),
             const SizedBox(height: 20),
 
-            // Danger Icon
+            // Admin Shield / Warning Icon
             Container(
               width: 68,
               height: 68,
               decoration: BoxDecoration(
-                color: AppColors.danger.withValues(alpha: isDark ? 0.2 : 0.1),
+                color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.2 : 0.12),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: AppColors.danger.withValues(alpha: 0.35),
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
                   width: 1.5,
                 ),
               ),
               child: const Icon(
-                Icons.delete_forever_rounded,
-                color: AppColors.danger,
+                Icons.admin_panel_settings_rounded,
+                color: Color(0xFFF59E0B),
                 size: 34,
               ),
             ),
@@ -146,19 +146,45 @@ class _DeleteAccountModalState extends State<DeleteAccountModal> {
                 letterSpacing: -0.3,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 14),
 
-            // Subtitle / Clear Warning
-            Text(
-              context.tr('deleteAccountConfirmDesc'),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13.5,
-                height: 1.5,
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            // Notice Box (Admin creation & Review statement)
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFEF3C7).withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF334155) : const Color(0xFFFCD34D),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 2),
+                    child: Icon(
+                      Icons.info_outline_rounded,
+                      size: 18,
+                      color: Color(0xFFD97706),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      context.tr('deleteAccountConfirmDesc'),
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        height: 1.5,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF78350F),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
 
             // Optional Reason Input
             TextField(
@@ -192,7 +218,7 @@ class _DeleteAccountModalState extends State<DeleteAccountModal> {
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: const BorderSide(
-                    color: AppColors.danger,
+                    color: AppColors.secondary,
                     width: 1.5,
                   ),
                 ),
@@ -259,7 +285,7 @@ class _DeleteAccountModalState extends State<DeleteAccountModal> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleDelete,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.danger,
+                      backgroundColor: const Color(0xFFDC2626),
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -295,3 +321,4 @@ class _DeleteAccountModalState extends State<DeleteAccountModal> {
     );
   }
 }
+
