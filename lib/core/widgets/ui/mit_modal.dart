@@ -28,13 +28,15 @@ class MitModalHeader extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Handle bar
+        // iOS Grabber handle bar
         Center(
           child: Container(
-            width: 44,
-            height: 5,
+            width: 36,
+            height: 4.5,
             decoration: BoxDecoration(
-              color: theme.colorScheme.outline,
+              color: isDark
+                  ? const Color(0xFF475569).withValues(alpha: 0.6)
+                  : const Color(0xFFCBD5E1),
               borderRadius: BorderRadius.circular(10),
             ),
           ),
@@ -74,8 +76,9 @@ class MitModalHeader extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 17.5,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.3,
                             color: theme.colorScheme.onSurface,
                           ),
                         ),
@@ -86,7 +89,7 @@ class MitModalHeader extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 11.5,
+                              fontSize: 12,
                               color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
                             ),
                           ),
@@ -100,9 +103,23 @@ class MitModalHeader extends StatelessWidget {
             if (trailing != null)
               trailing!
             else
-              IconButton(
-                icon: const Icon(Icons.close_rounded),
-                onPressed: onClose ?? () => Navigator.of(context).pop(),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onClose ?? () => Navigator.of(context).pop(),
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFF1F5F9),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 18,
+                    color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
+                  ),
+                ),
               ),
           ],
         ),

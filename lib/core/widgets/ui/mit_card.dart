@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:m_it_student_platform/core/constants/app_colors.dart';
 import 'package:m_it_student_platform/core/constants/app_dimens.dart';
+import 'package:m_it_student_platform/core/utils/haptics.dart';
 
 class MitCard extends StatelessWidget {
   const MitCard({
@@ -12,7 +13,7 @@ class MitCard extends StatelessWidget {
     this.borderRadius,
     this.borderColor,
     this.backgroundColor,
-    this.borderWidth = 1.0,
+    this.borderWidth = 0.8,
   });
 
   final Widget child;
@@ -29,7 +30,7 @@ class MitCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final effectiveRadius = borderRadius ?? AppRadius.r20;
+    final effectiveRadius = borderRadius ?? AppRadius.r22;
     final effectiveBg = backgroundColor ?? (isDark ? AppColors.darkSurface : AppColors.surface);
     final effectiveBorderColor = borderColor ?? (isDark ? AppColors.darkCardBorder : AppColors.cardBorder);
 
@@ -45,9 +46,9 @@ class MitCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: isDark
-                ? Colors.black.withValues(alpha: 0.3)
-                : Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
+                ? Colors.black.withValues(alpha: 0.28)
+                : Colors.black.withValues(alpha: 0.035),
+            blurRadius: 18,
             offset: const Offset(0, 4),
           ),
         ],
@@ -65,7 +66,10 @@ class MitCard extends StatelessWidget {
       return Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onTap,
+          onTap: () {
+            AppHaptics.light();
+            onTap!();
+          },
           borderRadius: effectiveRadius,
           child: cardContent,
         ),

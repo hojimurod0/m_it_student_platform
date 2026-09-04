@@ -44,22 +44,22 @@ class StatCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: cardBg,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: cardBorder,
-              width: 1.1,
+              width: 0.8,
             ),
             boxShadow: [
               BoxShadow(
                 color: isDark
-                    ? Colors.black.withValues(alpha: 0.3)
-                    : const Color(0xFF64748B).withValues(alpha: 0.04),
-                blurRadius: 10,
+                    ? Colors.black.withValues(alpha: 0.28)
+                    : const Color(0xFF64748B).withValues(alpha: 0.035),
+                blurRadius: 14,
                 offset: const Offset(0, 3),
               ),
             ],

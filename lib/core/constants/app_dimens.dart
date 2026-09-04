@@ -60,14 +60,22 @@ class AppRadius {
   static const double lg = 16.0;
   static const double xl = 20.0;
   static const double xxl = 24.0;
+  static const double xxxl = 28.0;
+  static const double card = 22.0;
+  static const double sheet = 30.0;
   static const double full = 999.0;
 
   static final BorderRadius r8 = BorderRadius.circular(sm);
   static final BorderRadius r12 = BorderRadius.circular(md);
   static final BorderRadius r16 = BorderRadius.circular(lg);
   static final BorderRadius r20 = BorderRadius.circular(xl);
+  static final BorderRadius r22 = BorderRadius.circular(card);
   static final BorderRadius r24 = BorderRadius.circular(xxl);
+  static final BorderRadius r28 = BorderRadius.circular(xxxl);
+  static final BorderRadius r32 = BorderRadius.circular(32.0);
   static final BorderRadius rFull = BorderRadius.circular(full);
 
   static final BorderRadius topR28 = const BorderRadius.vertical(top: Radius.circular(28));
+  static final BorderRadius topR30 = const BorderRadius.vertical(top: Radius.circular(30));
+  static final BorderRadius topR32 = const BorderRadius.vertical(top: Radius.circular(32));
 }

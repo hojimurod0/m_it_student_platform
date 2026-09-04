@@ -74,7 +74,10 @@ class MitButton extends StatelessWidget {
 
     final buttonWidget = SizedBox(
       height: height,
-      child: _buildBaseButton(context, isDark, childContent),
+      child: _PressableScale(
+        enabled: onPressed != null && !isLoading,
+        child: _buildBaseButton(context, isDark, childContent),
+      ),
     );
 
     if (isFullWidth) {
@@ -142,7 +145,7 @@ class MitButton extends StatelessWidget {
           style: OutlinedButton.styleFrom(
             side: BorderSide(
               color: isDark ? AppColors.primaryAccent : AppColors.brandNavy,
-              width: 1.4,
+              width: 1.2,
             ),
             shape: RoundedRectangleBorder(borderRadius: AppRadius.r16),
           ),
@@ -169,5 +172,39 @@ class MitButton extends StatelessWidget {
           child: child,
         );
     }
+  }
+}
+
+class _PressableScale extends StatefulWidget {
+  const _PressableScale({
+    required this.child,
+    required this.enabled,
+  });
+
+  final Widget child;
+  final bool enabled;
+
+  @override
+  State<_PressableScale> createState() => _PressableScaleState();
+}
+
+class _PressableScaleState extends State<_PressableScale> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.enabled) return widget.child;
+
+    return Listener(
+      onPointerDown: (_) => setState(() => _isPressed = true),
+      onPointerUp: (_) => setState(() => _isPressed = false),
+      onPointerCancel: (_) => setState(() => _isPressed = false),
+      child: AnimatedScale(
+        scale: _isPressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 110),
+        curve: Curves.easeOutCubic,
+        child: widget.child,
+      ),
+    );
   }
 }

@@ -35,8 +35,8 @@ class SectionHeader extends StatelessWidget {
                 title,
                 style: TextStyle(
                   fontSize: fontSize,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.4,
                   color: theme.colorScheme.onSurface,
                 ),
               ),
@@ -47,8 +47,9 @@ class SectionHeader extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: -0.1,
                     color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
                   ),
                 ),
@@ -58,9 +59,9 @@ class SectionHeader extends StatelessWidget {
         ),
         if (actionLabel != null && onAction != null) ...[
           const SizedBox(width: 8),
-          InkWell(
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: onAction,
-            borderRadius: BorderRadius.circular(8),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               child: Row(
@@ -70,14 +71,15 @@ class SectionHeader extends StatelessWidget {
                     actionLabel!,
                     style: TextStyle(
                       fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.2,
                       color: isDark ? AppColors.primaryAccent : AppColors.primary,
                     ),
                   ),
-                  const SizedBox(width: 2),
+                  const SizedBox(width: 3),
                   Icon(
                     Icons.arrow_forward_ios_rounded,
-                    size: 12,
+                    size: 11,
                     color: isDark ? AppColors.primaryAccent : AppColors.primary,
                   ),
                 ],
